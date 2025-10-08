@@ -33,7 +33,7 @@ const splitChild = (x: Node, i: number, history: HistoryStep[], order: number) =
     const medianKey = y.keys[order - 1];
 
     z.keys = y.keys.splice(order); 
-    y.keys.pop();
+    y.keys.pop(); // remove median key from y
 
     if (!y.isLeaf) {
         z.children = y.children.splice(order);
@@ -69,9 +69,21 @@ const insertNonFull = (x: Node, k: number, history: HistoryStep[], order: number
             i--;
         }
         i++;
-        addHistory(history, deepCloneNode(x.getRoot()), `Key ${k} fits in child at index ${i}. Descending...`, x.keys.length > 0 ? x.keys[0] : undefined, undefined, x.children[i].keys.length > 0 ? x.children[i].keys[0] : undefined);
         
-        if (x.children[i].keys.length === 2 * order - 1) {
+        let childToInsertIn = x.children[i];
+        if (!childToInsertIn) {
+            // This case can happen after a split if the index logic is off.
+            // Let's find the correct child again.
+            let newI = 0;
+            while(newI < x.keys.length && k > x.keys[newI]){
+                newI++;
+            }
+            childToInsertIn = x.children[newI];
+        }
+
+        addHistory(history, deepCloneNode(x.getRoot()), `Key ${k} fits in child [${childToInsertIn.keys.join(',')}]. Descending...`, x.keys.length > 0 ? x.keys[0] : undefined, undefined, childToInsertIn.keys.length > 0 ? childToInsertIn.keys[0] : undefined);
+        
+        if (childToInsertIn.keys.length === 2 * order - 1) {
             splitChild(x, i, history, order);
             if (k > x.keys[i]) {
                 i++; 
@@ -105,8 +117,8 @@ export const insertBTree = (initialRoot: Node | null, k: number, order: number):
         s.isLeaf = false;
         s.children.push(root);
         root.parent = s;
+        splitChild(s, 0, history, order);
         root = s; 
-        splitChild(root, 0, history, order);
         insertNonFull(root, k, history, order);
     } else {
         insertNonFull(root, k, history, order);
