@@ -14,13 +14,15 @@ import type { Node, HistoryStep } from '@/lib/types';
 import { insertBST, deleteBST } from '@/lib/algorithms/bst';
 import { insertRBTree, deleteRBTree } from '@/lib/algorithms/rbt';
 import { insertBTree, deleteBTree } from '@/lib/algorithms/btree';
+import { insertHeap, deleteHeap } from '@/lib/algorithms/heap';
+import { insertBinomialHeap, deleteBinomialHeap } from '@/lib/algorithms/binomialHeap';
 import { drawTree, CANVAS_WIDTH } from '@/lib/drawing';
 
 
 const TreeVisualizer = () => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [inputValue, setInputValue] = useState('');
-    const [treeType, setTreeType] = useState<'RedBlackTree' | 'BST' | 'BTree'>('RedBlackTree');
+    const [treeType, setTreeType] = useState<'RedBlackTree' | 'BST' | 'BTree' | 'Heap' | 'BinomialHeap'>('RedBlackTree');
     const [history, setHistory] = useState<HistoryStep[]>([]);
     const [currentStepIndex, setCurrentStepIndex] = useState(-1);
     const [isAnimating, setIsAnimating] = useState(false);
@@ -76,7 +78,14 @@ const TreeVisualizer = () => {
     }, [currentStepIndex]);
 
     const playAnimation = useCallback(() => {
-        if (history.length === 0) return;
+        if (history.length === 0) {
+             toast({
+                variant: "destructive",
+                title: "No Operation Performed",
+                description: "Please insert or delete a node first.",
+            });
+            return;
+        };
 
         if (isAnimating) {
             cleanupAnimation();
@@ -91,14 +100,14 @@ const TreeVisualizer = () => {
         animationIntervalRef.current = setInterval(() => {
             stepForward();
         }, 800);
-    }, [isAnimating, currentStepIndex, history.length, cleanupAnimation, stepForward]);
+    }, [isAnimating, currentStepIndex, history.length, cleanupAnimation, stepForward, toast]);
     
     useEffect(() => {
         if(isAnimating && currentStepIndex === history.length - 1) {
             cleanupAnimation();
             toast({
                 title: "Animation Finished",
-                description: "The tree has reached a stable state.",
+                description: "The visualization has reached its final state.",
             });
         }
     }, [currentStepIndex, history.length, isAnimating, cleanupAnimation, toast]);
@@ -107,13 +116,23 @@ const TreeVisualizer = () => {
     const handleOperation = (operation: 'insert' | 'delete') => {
         cleanupAnimation();
         const value = parseInt(inputValue, 10);
-        if (isNaN(value)) {
+        if (isNaN(value) && operation === 'insert') {
             toast({
                 variant: "destructive",
                 title: "Invalid Input",
-                description: "Please enter a valid number.",
+                description: "Please enter a valid number for insertion.",
             });
             return;
+        }
+        
+        // For delete operations that don't require a value (e.g., extract-min)
+        if (operation === 'delete' && (treeType === 'Heap' || treeType === 'BinomialHeap')) {
+             if (inputValue !== '') {
+                toast({
+                    title: "Input Ignored",
+                    description: `Delete operation for ${treeType} is always 'extract-min'. Input value is ignored.`,
+                });
+            }
         }
 
         let newHistory: HistoryStep[] = [];
@@ -136,9 +155,19 @@ const TreeVisualizer = () => {
                     if (operation === 'insert') newHistory = insertBTree(currentTree, value, bTreeOrder);
                     else newHistory = deleteBTree(currentTree, value, bTreeOrder);
                     break;
+                case 'Heap':
+                     operationName = `Heap ${operation}`;
+                     if (operation === 'insert') newHistory = insertHeap(currentTree, value);
+                     else newHistory = deleteHeap(currentTree);
+                     break;
+                case 'BinomialHeap':
+                     operationName = `Binomial Heap ${operation}`;
+                     if (operation === 'insert') newHistory = insertBinomialHeap(currentTree, value);
+                     else newHistory = deleteBinomialHeap(currentTree);
+                     break;
             }
 
-            if (newHistory.length > 1) { // Check for more than initial state
+            if (newHistory.length > 1) { 
                 setHistory(newHistory);
                 setCurrentStepIndex(0);
                 toast({
@@ -165,7 +194,7 @@ const TreeVisualizer = () => {
     
     const handleTreeTypeChange = (type: string) => {
         cleanupAnimation();
-        setTreeType(type as 'RedBlackTree' | 'BST' | 'BTree');
+        setTreeType(type as 'RedBlackTree' | 'BST' | 'BTree' | 'Heap' | 'BinomialHeap');
         setHistory([]);
         setCurrentStepIndex(-1);
     }
@@ -210,10 +239,12 @@ const TreeVisualizer = () => {
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <Tabs value={treeType} onValueChange={handleTreeTypeChange}>
-                                <TabsList className="grid w-full grid-cols-3">
+                                <TabsList className="grid w-full grid-cols-5">
                                     <TabsTrigger value="BST">BST</TabsTrigger>
                                     <TabsTrigger value="RedBlackTree">RBT</TabsTrigger>
                                     <TabsTrigger value="BTree">B-Tree</TabsTrigger>
+                                    <TabsTrigger value="Heap">Heap</TabsTrigger>
+                                    <TabsTrigger value="BinomialHeap">Binomial</TabsTrigger>
                                 </TabsList>
                             </Tabs>
 
@@ -245,7 +276,7 @@ const TreeVisualizer = () => {
                                         type="number"
                                         value={inputValue}
                                         onChange={(e) => setInputValue(e.target.value)}
-                                        placeholder="e.g., 42"
+                                        placeholder={treeType === 'Heap' || treeType === 'BinomialHeap' ? 'e.g., 42 (or blank for delete)' : 'e.g., 42'}
                                         onKeyDown={(e) => {
                                              if (e.key === 'Enter') {
                                                 e.preventDefault();
@@ -254,7 +285,9 @@ const TreeVisualizer = () => {
                                         }}
                                     />
                                     <Button onClick={() => handleOperation('insert')} className="bg-green-600 hover:bg-green-700">Insert</Button>
-                                    <Button variant="destructive" onClick={() => handleOperation('delete')}>Delete</Button>
+                                    <Button variant="destructive" onClick={() => handleOperation('delete')}>
+                                        {treeType === 'Heap' || treeType === 'BinomialHeap' ? 'Extract Min' : 'Delete'}
+                                    </Button>
                                 </div>
                             </div>
                             
@@ -297,7 +330,7 @@ const TreeVisualizer = () => {
                             <BotMessageSquare className="h-4 w-4 text-accent dark:text-sky-300" />
                             <AlertTitle className="text-accent-foreground dark:text-sky-200">Status</AlertTitle>
                             <AlertDescription className="text-accent-foreground/80 dark:text-sky-300/80">
-                                {currentStep?.message || "Select a tree type and perform an operation."}
+                                {currentStep?.message || "Select a data structure and perform an operation."}
                             </AlertDescription>
                         </Alert>
                         <Card className="overflow-hidden">
@@ -326,7 +359,7 @@ const TreeVisualizer = () => {
                                 </div>
                                  <div className="flex items-center gap-2">
                                     <div className="w-4 h-4 rounded-full bg-sky-400 border-2 border-sky-600"></div>
-                                    <span>Helper/Secondary Node</span>
+                                    <span>Helper/Swapped Node</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-red-700"></div>
@@ -334,7 +367,7 @@ const TreeVisualizer = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-emerald-700"></div>
-                                    <span>Black Node / BST / B-Tree Node</span>
+                                    <span>Default Node State</span>
                                 </div>
                             </CardContent>
                         </Card>
@@ -346,5 +379,3 @@ const TreeVisualizer = () => {
 };
 
 export default TreeVisualizer;
-
-    

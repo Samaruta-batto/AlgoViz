@@ -6,7 +6,7 @@ const LEVEL_HEIGHT = 90;
 const B_TREE_NODE_HEIGHT = 40;
 const B_TREE_KEY_WIDTH = 40;
 
-// --- BST/RBT Layout ---
+// --- Binary Tree / Heap Layout ---
 const layoutBinaryTree = (node: Node | null, x: number, y: number, separation: number, depth: number) => {
     if (!node) return;
     
@@ -61,17 +61,62 @@ const positionBTree = (node: Node | null, xOffset: number): number => {
 };
 
 
+// --- Binomial Heap Layout ---
+const layoutBinomialHeap = (roots: Node[]) => {
+    let currentX = NODE_RADIUS * 2;
+    roots.forEach(root => {
+        const treeWidth = Math.pow(2, root.degree -1) * (NODE_RADIUS * 2.5);
+        layoutBinomialTree(root, currentX + treeWidth / 2, NODE_RADIUS);
+        currentX += treeWidth + NODE_RADIUS * 3;
+    });
+};
+
+const layoutBinomialTree = (node: Node, x: number, y: number) => {
+    node.x = x;
+    node.y = y;
+
+    if (node.child) {
+        const children = [];
+        let currentChild = node.child;
+        while(currentChild) {
+            children.push(currentChild);
+            currentChild = currentChild.sibling;
+        }
+
+        const totalWidth = Math.pow(2, node.degree - 2) * (NODE_RADIUS * 4);
+        let startX = x - totalWidth;
+        if (children.length === 1) {
+            startX = x;
+        }
+
+
+        children.reverse().forEach((child, index) => {
+            const childTreeWidth = Math.pow(2, child.degree) * (NODE_RADIUS * 2);
+            layoutBinomialTree(child, startX + childTreeWidth / 2, y + LEVEL_HEIGHT);
+            startX += childTreeWidth + NODE_RADIUS;
+        });
+    }
+};
+
+
 // --- Main Drawing Function ---
-export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null, treeType: 'BST' | 'RedBlackTree' | 'BTree', order: number) => {
+export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null, treeType: 'BST' | 'RedBlackTree' | 'BTree' | 'Heap' | 'BinomialHeap', order: number) => {
     const root = step?.tree;
     let maxDepth = 0;
     
     const calculateDepth = (node: Node | null, depth: number) => {
         if (!node) return;
         maxDepth = Math.max(maxDepth, depth);
-        if (treeType === 'BTree' && node.children) {
+
+        if (node.isBinomialHeap) {
+            node.children.forEach(child => calculateDepth(child, depth));
+        } else if (treeType === 'BTree' && node.children) {
             node.children.forEach(child => calculateDepth(child, depth + 1));
-        } else {
+        } else if (treeType === 'BinomialHeap') {
+            if(node.child) calculateDepth(node.child, depth + 1);
+            if(node.sibling) calculateDepth(node.sibling, depth);
+        }
+        else {
             calculateDepth(node.left, depth + 1);
             calculateDepth(node.right, depth + 1);
         }
@@ -92,25 +137,34 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
         if (!node) return;
         node.x += shiftX;
 
-        if (treeType === 'BTree') {
-             const nodeStartX = node.x - node.width / 2;
-             const nodeEndX = node.x + node.width / 2;
-             minX = Math.min(minX, nodeStartX);
-             maxX = Math.max(maxX, nodeEndX);
-             if(node.children) node.children.forEach(c => findBoundsAndShift(c, shiftX));
-        } else {
-            minX = Math.min(minX, node.x - NODE_RADIUS);
-            maxX = Math.max(maxX, node.x + NODE_RADIUS);
+        if (node.isBinomialHeap) {
+            node.children.forEach(c => findBoundsAndShift(c, shiftX));
+            return;
+        }
+
+        const nodeStartX = node.x - (treeType === 'BTree' ? node.width / 2 : NODE_RADIUS);
+        const nodeEndX = node.x + (treeType === 'BTree' ? node.width / 2 : NODE_RADIUS);
+        minX = Math.min(minX, nodeStartX);
+        maxX = Math.max(maxX, nodeEndX);
+        
+        if (treeType === 'BTree' && node.children) node.children.forEach(c => findBoundsAndShift(c, shiftX));
+        else if (treeType === 'BinomialHeap') {
+             if(node.child) findBoundsAndShift(node.child, shiftX);
+             if(node.sibling) findBoundsAndShift(node.sibling, shiftX);
+        }
+        else {
             findBoundsAndShift(node.left, shiftX);
             findBoundsAndShift(node.right, shiftX);
         }
     };
 
     // 1. Recalculate layout
-    if (treeType === 'BTree') {
+    if (root.isBinomialHeap) {
+        layoutBinomialHeap(root.children);
+    } else if (treeType === 'BTree') {
         layoutBTree(root, 0, order);
-        positionBTree(root, NODE_RADIUS); // Add padding
-    } else {
+        positionBTree(root, NODE_RADIUS);
+    } else { // BST, RBT, Heap
         layoutBinaryTree(root, CANVAS_WIDTH / 2, NODE_RADIUS, CANVAS_WIDTH / 4, 0);
     }
     
@@ -118,15 +172,22 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
     minX = Infinity;
     maxX = -Infinity;
     const initialFindBounds = (node: Node) => {
-        if (treeType === 'BTree') {
-            const nodeStartX = node.x - node.width / 2;
-            const nodeEndX = node.x + node.width / 2;
-            minX = Math.min(minX, nodeStartX);
-            maxX = Math.max(maxX, nodeEndX);
-            if(node.children) node.children.forEach(initialFindBounds);
-        } else {
-            minX = Math.min(minX, node.x - NODE_RADIUS);
-            maxX = Math.max(maxX, node.x + NODE_RADIUS);
+         if (node.isBinomialHeap) {
+            node.children.forEach(initialFindBounds);
+            return;
+        }
+
+        const nodeStartX = node.x - (treeType === 'BTree' ? node.width / 2 : NODE_RADIUS);
+        const nodeEndX = node.x + (treeType === 'BTree' ? node.width / 2 : NODE_RADIUS);
+        minX = Math.min(minX, nodeStartX);
+        maxX = Math.max(maxX, nodeEndX);
+
+        if (treeType === 'BTree' && node.children) node.children.forEach(initialFindBounds);
+         else if (treeType === 'BinomialHeap') {
+             if(node.child) initialFindBounds(node.child);
+             if(node.sibling) initialFindBounds(node.sibling);
+        }
+        else {
             if(node.left) initialFindBounds(node.left);
             if(node.right) initialFindBounds(node.right);
         }
@@ -136,7 +197,6 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
     const requiredWidth = maxX - minX + (NODE_RADIUS * 2);
     ctx.canvas.width = Math.max(CANVAS_WIDTH, requiredWidth);
 
-    // Shift entire tree if minX is negative
     const shiftX = ctx.canvas.width / 2 - (minX + (maxX-minX)/2);
     minX = Infinity;
     maxX = -Infinity;
@@ -147,16 +207,18 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
 
     // 2. Recursive draw
     const drawRecursive = (node: Node) => {
+        if(node.isBinomialHeap) {
+            node.children.forEach(drawRecursive);
+            return;
+        }
+
         if (treeType === 'BTree') {
-            // Draw connections first
             if (!node.isLeaf && node.children) {
                 node.children.forEach((child, index) => {
                     ctx.beginPath();
                     const parentKeyWidth = node.keys.length * B_TREE_KEY_WIDTH;
                     const parentStartX = node.x - parentKeyWidth / 2;
-                    // The line should emerge from *between* keys
                     const lineStartX = parentStartX + index * B_TREE_KEY_WIDTH + (index > 0 ? (index) * 2 : 0) ;
-                    
                     ctx.moveTo(lineStartX, node.y + B_TREE_NODE_HEIGHT / 2);
                     ctx.lineTo(child.x, child.y - B_TREE_NODE_HEIGHT / 2);
                     ctx.strokeStyle = '#6b7280';
@@ -164,14 +226,38 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
                     ctx.stroke();
                 });
             }
-            // Then draw nodes
             drawBTreeNode(ctx, node, step);
-            // Then recurse
             if (!node.isLeaf && node.children) {
                 node.children.forEach(drawRecursive);
             }
-        } else {
-            // Draw connections for BST/RBT
+        } else if (treeType === 'BinomialHeap') {
+            // Draw connection to child
+            if (node.child) {
+                ctx.beginPath();
+                ctx.moveTo(node.x, node.y);
+                ctx.lineTo(node.child.x, node.child.y);
+                ctx.strokeStyle = '#6b7280';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+            // Draw connection to sibling (dashed line)
+            if (node.sibling) {
+                ctx.save();
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(node.x, node.y);
+                ctx.lineTo(node.sibling.x, node.sibling.y);
+                ctx.strokeStyle = '#a1a1aa';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.restore();
+            }
+            drawBinaryNode(ctx, node); // Re-use binary node drawing
+            if (node.child) drawRecursive(node.child);
+            if (node.sibling) drawRecursive(node.sibling);
+
+        }
+        else { // BST, RBT, Heap
             [node.left, node.right].forEach(child => {
                 if (child) {
                     ctx.beginPath();
@@ -182,9 +268,7 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
                     ctx.stroke();
                 }
             });
-             // Then draw nodes
             drawBinaryNode(ctx, node);
-            // Then recurse
             if (node.left) drawRecursive(node.left);
             if (node.right) drawRecursive(node.right);
         }
@@ -196,24 +280,22 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
 
 const drawBTreeNode = (ctx: CanvasRenderingContext2D, node: Node, step: HistoryStep | null) => {
     const keyCount = node.keys.length;
-    if (keyCount === 0) return; // Don't draw empty nodes
+    if (keyCount === 0) return;
 
     const boxWidth = keyCount * B_TREE_KEY_WIDTH + (keyCount -1) * 2;
     const startX = node.x - boxWidth / 2;
     
-    let fillColor = '#10B981'; // Default green
+    let fillColor = '#10B981';
     let strokeColor = '#047857';
 
     if(node.highlighted) {
-        fillColor = '#FBBF24'; // Yellow
+        fillColor = '#FBBF24';
         strokeColor = '#D97706';
     } else if(node.secondaryHighlighted) {
-        fillColor = '#38BDF8'; // Sky blue
+        fillColor = '#38BDF8';
         strokeColor = '#0284C7';
     }
 
-
-    // Draw the outer rectangular box
     ctx.fillStyle = fillColor;
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 3;
@@ -222,17 +304,14 @@ const drawBTreeNode = (ctx: CanvasRenderingContext2D, node: Node, step: HistoryS
     ctx.fill();
     ctx.stroke();
     
-    // Draw keys and internal dividers
     node.keys.forEach((key, index) => {
         const keyStartX = startX + index * (B_TREE_KEY_WIDTH + 2);
         
-        // Highlight specific key
         if(step?.highlightKey === key) {
-            ctx.fillStyle = 'rgba(251, 146, 60, 0.7)'; // Orange highlight
+            ctx.fillStyle = 'rgba(251, 146, 60, 0.7)';
             ctx.fillRect(keyStartX, node.y - B_TREE_NODE_HEIGHT / 2, B_TREE_KEY_WIDTH, B_TREE_NODE_HEIGHT);
         }
 
-        // Draw internal divider line
         if (index > 0) {
             ctx.beginPath();
             ctx.moveTo(keyStartX, node.y - B_TREE_NODE_HEIGHT / 2);
@@ -242,7 +321,6 @@ const drawBTreeNode = (ctx: CanvasRenderingContext2D, node: Node, step: HistoryS
             ctx.stroke();
         }
 
-        // Draw the value text
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 14px Inter, sans-serif';
         ctx.textAlign = 'center';
@@ -256,14 +334,13 @@ const drawBinaryNode = (ctx: CanvasRenderingContext2D, node: Node) => {
     let strokeColor = node.color === 'red' ? '#B91C1C' : '#047857';
 
     if (node.highlighted) {
-        fillColor = '#FBBF24'; // Yellow
+        fillColor = '#FBBF24';
         strokeColor = '#D97706';
     } else if (node.secondaryHighlighted) {
-        fillColor = '#38BDF8'; // Sky blue
+        fillColor = '#38BDF8';
         strokeColor = '#0284C7';
     }
     
-    // Draw the node circle
     ctx.beginPath();
     ctx.arc(node.x, node.y, NODE_RADIUS, 0, Math.PI * 2);
     ctx.fillStyle = fillColor;
@@ -272,7 +349,6 @@ const drawBinaryNode = (ctx: CanvasRenderingContext2D, node: Node) => {
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Draw the value text
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 14px Inter, sans-serif';
     ctx.textAlign = 'center';

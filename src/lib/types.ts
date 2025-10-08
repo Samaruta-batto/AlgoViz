@@ -7,16 +7,22 @@ export class Node {
     parent: Node | null;
     color: 'red' | 'black';
     highlighted: boolean;
-    secondaryHighlighted: boolean; // For highlighting a second node
+    secondaryHighlighted: boolean;
     x: number;
     y: number;
 
-    // For B-Tree layout
+    // B-Tree layout
     modifier: number;
     width: number;
     isLeaf: boolean;
 
-    constructor(value: number, x = 0, y = 0, color: 'red' | 'black' = 'black', parent: Node | null = null) {
+    // Binomial Heap
+    degree: number;
+    child: Node | null;
+    sibling: Node | null;
+    isBinomialHeap: boolean;
+
+    constructor(value: number, x = 0, y = 0, color: 'red' | 'black' = 'black', parent: Node | null = null, highlighted = false, secondaryHighlighted = false) {
         this.value = value;
         this.keys = [value];
         this.children = [];
@@ -24,8 +30,8 @@ export class Node {
         this.right = null;
         this.parent = parent;
         this.color = color;
-        this.highlighted = false;
-        this.secondaryHighlighted = false;
+        this.highlighted = highlighted;
+        this.secondaryHighlighted = secondaryHighlighted;
         this.x = x;
         this.y = y;
 
@@ -33,6 +39,12 @@ export class Node {
         this.modifier = 0;
         this.width = 0;
         this.isLeaf = true;
+        
+        // Binomial Heap specific
+        this.degree = 0;
+        this.child = null;
+        this.sibling = null;
+        this.isBinomialHeap = false;
     }
 
     getRoot(): Node {
