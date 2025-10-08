@@ -1,3 +1,4 @@
+
 export class Node {
     value: number;
     keys: number[];
@@ -24,8 +25,8 @@ export class Node {
 
     constructor(value: number, x = 0, y = 0, color: 'red' | 'black' = 'black', parent: Node | null = null, highlighted = false, secondaryHighlighted = false) {
         this.value = value;
-        // If the value is a dummy 0 (often for new B-Tree roots), start with empty keys. Otherwise, init with value.
-        this.keys = value === 0 && arguments.length <= 1 ? [] : [value]; 
+        // If the value is a dummy 0 for B-Tree structural nodes, start with empty keys. Otherwise, init with value.
+        this.keys = (value === 0 && arguments.length <= 1) ? [] : [value]; 
         this.children = [];
         this.left = null;
         this.right = null;

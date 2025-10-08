@@ -28,7 +28,7 @@ const layoutBinaryTree = (node: Node | null, x: number, y: number, separation: n
 
 // --- B-Tree Layout ---
 const layoutBTree = (node: Node | null, depth: number, order: number) => {
-    if (!node) return;
+    if (!node || !node.keys) return; // Defensive check
 
     node.y = depth * LEVEL_HEIGHT + (LEVEL_HEIGHT / 2);
     node.width = node.keys.length * B_TREE_KEY_WIDTH + (node.keys.length + 1) * 2;
@@ -145,8 +145,8 @@ export const drawTree = (ctx: CanvasRenderingContext2D, stepOrRoot: HistoryStep 
             return;
         }
 
-        const nodeStartX = node.x - (treeType === 'BTree' ? node.width / 2 : NODE_RADIUS);
-        const nodeEndX = node.x + (treeType === 'BTree' ? node.width / 2 : NODE_RADIUS);
+        const nodeStartX = node.x - (treeType === 'BTree' ? (node.width || 0) / 2 : NODE_RADIUS);
+        const nodeEndX = node.x + (treeType === 'BTree' ? (node.width || 0) / 2 : NODE_RADIUS);
         minX = Math.min(minX, nodeStartX);
         maxX = Math.max(maxX, nodeEndX);
         
@@ -180,8 +180,8 @@ export const drawTree = (ctx: CanvasRenderingContext2D, stepOrRoot: HistoryStep 
             return;
         }
 
-        const nodeStartX = node.x - (treeType === 'BTree' ? node.width / 2 : NODE_RADIUS);
-        const nodeEndX = node.x + (treeType === 'BTree' ? node.width / 2 : NODE_RADIUS);
+        const nodeStartX = node.x - (treeType === 'BTree' ? (node.width || 0) / 2 : NODE_RADIUS);
+        const nodeEndX = node.x + (treeType === 'BTree' ? (node.width || 0) / 2 : NODE_RADIUS);
         minX = Math.min(minX, nodeStartX);
         maxX = Math.max(maxX, nodeEndX);
 
@@ -210,6 +210,7 @@ export const drawTree = (ctx: CanvasRenderingContext2D, stepOrRoot: HistoryStep 
 
     // 2. Recursive draw
     const drawRecursive = (node: Node) => {
+        if(!node) return;
         if(node.isBinomialHeap) {
             node.children.forEach(drawRecursive);
             return;
@@ -219,7 +220,7 @@ export const drawTree = (ctx: CanvasRenderingContext2D, stepOrRoot: HistoryStep 
             if (!node.isLeaf && node.children) {
                 node.children.forEach((child, index) => {
                     ctx.beginPath();
-                    const parentKeyWidth = node.keys.length * B_TREE_KEY_WIDTH;
+                    const parentKeyWidth = (node.keys || []).length * B_TREE_KEY_WIDTH;
                     const parentStartX = node.x - parentKeyWidth / 2;
                     const lineStartX = parentStartX + index * B_TREE_KEY_WIDTH + (index > 0 ? (index) * 2 : 0) ;
                     ctx.moveTo(lineStartX, node.y + B_TREE_NODE_HEIGHT / 2);
@@ -529,4 +530,5 @@ const drawProcessNode = (ctx: CanvasRenderingContext2D, process: ForkProcess) =>
     ctx.font = '12px Inter, sans-serif';
     ctx.fillText(`PPID: ${process.ppid}`, process.x, process.y + 10);
 };
+
 

@@ -1,3 +1,4 @@
+
 import { Node, HistoryStep } from '../types';
 
 export const deepCloneNode = (node: Node | null, parent: Node | null = null): Node | null => {
@@ -6,7 +7,7 @@ export const deepCloneNode = (node: Node | null, parent: Node | null = null): No
     const newNode = new Node(node.value, node.x, node.y, node.color, parent);
     newNode.highlighted = node.highlighted;
     newNode.secondaryHighlighted = node.secondaryHighlighted;
-    newNode.keys = [...(node.keys || [])];
+    newNode.keys = [...(node.keys || [])]; // Always create a new array copy
     newNode.isLeaf = node.isLeaf;
     newNode.isBinomialHeap = node.isBinomialHeap;
     newNode.degree = node.degree;
