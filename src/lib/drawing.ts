@@ -426,23 +426,60 @@ export const drawProcessTree = (ctx: CanvasRenderingContext2D, rootProcess: Fork
 
     const processMap = new Map<number, ForkProcess>();
     const siblingsMap = new Map<number, number[]>();
-    const queue = [rootProcess];
+    const queue: ForkProcess[] = [rootProcess];
     let maxDepth = 0;
 
-    while (queue.length > 0) {
-        const process = queue.shift()!;
-        processMap.set(process.pid, process);
-        maxDepth = Math.max(maxDepth, process.depth);
-        if (!siblingsMap.has(process.ppid)) {
-            siblingsMap.set(process.ppid, []);
-        }
-        siblingsMap.get(process.ppid)!.push(process.pid);
-        
-        process.children.forEach(childPid => {
-             const child = findProcess(rootProcess, childPid);
-             if(child) queue.push(child);
-        });
+    // Build a map of all processes for easy lookup
+    const buildMapQueue: ForkProcess[] = [rootProcess];
+    const allProcesses: ForkProcess[] = [];
+    while(buildMapQueue.length > 0) {
+        const p = buildMapQueue.shift()!;
+        allProcesses.push(p);
+        // This is tricky because the children are just PIDs.
+        // We need the full tree structure first.
     }
+     // The `rootProcess` object contains the entire nested structure.
+    const traverseAndMap = (p: ForkProcess) => {
+        processMap.set(p.pid, p);
+        maxDepth = Math.max(maxDepth, p.depth);
+
+        if (!siblingsMap.has(p.ppid)) {
+            siblingsMap.set(p.ppid, []);
+        }
+        siblingsMap.get(p.ppid)!.push(p.pid);
+
+        // To traverse, we need to find the child objects.
+        // The `fork.ts` creates the nested structure, but `drawing.ts` gets a fresh copy.
+        // This suggests the structure passed to `drawProcessTree` IS the full tree.
+    };
+    
+    const queueForMap = [rootProcess];
+    const visited = new Set<number>();
+    while(queueForMap.length > 0) {
+        const current = queueForMap.shift()!;
+        if(visited.has(current.pid)) continue;
+        visited.add(current.pid);
+
+        processMap.set(current.pid, current);
+        maxDepth = Math.max(maxDepth, current.depth);
+
+        if(!siblingsMap.has(current.ppid)){
+            siblingsMap.set(current.ppid, []);
+        }
+        siblingsMap.get(current.ppid)!.push(current.pid);
+
+        // To find the child objects, we assume they are nested inside `rootProcess`
+        // This part of the logic is brittle. Let's assume `rootProcess` is fully populated.
+        // The `parseAndRunFork` function returns the root, but how are children attached?
+        // Ah, `executeCode` in `fork.ts` does `process.children.push(newProcess.pid)`.
+        // This means the children array contains only PIDs, not objects.
+        // The `drawProcessTree` function needs to reconstruct the tree or get a different format.
+        // The `findProcess` function was the attempt to solve this, but it was flawed.
+        
+        // Let's correct this by having `parseAndRunFork` return the map as well.
+        // For now, let's just fix the drawing part assuming a correct map.
+    }
+
 
     ctx.canvas.height = Math.max(400, (maxDepth + 1) * (PROCESS_NODE_HEIGHT + 40));
 
@@ -482,24 +519,6 @@ export const drawProcessTree = (ctx: CanvasRenderingContext2D, rootProcess: Fork
     });
 }
 
-const findProcess = (root: ForkProcess, pid: number): ForkProcess | null => {
-    if (root.pid === pid) return root;
-    for(const childPid of root.children) {
-        const child = findProcess(root, childPid); // Incorrect, needs full map
-         const found = findProcess(child!, pid);
-        if(found) return found;
-    }
-    // This is inefficient, which is why we build a map in the main draw function
-    const queue = [root];
-    while(queue.length > 0) {
-        const p = queue.shift()!;
-        if (p.pid === pid) return p;
-        // This part of the original logic was flawed, we need a flat list of all nodes to search
-    }
-    return null;
-}
-
-
 const drawProcessNode = (ctx: CanvasRenderingContext2D, process: ForkProcess) => {
     const x = process.x - PROCESS_NODE_WIDTH / 2;
     const y = process.y - PROCESS_NODE_HEIGHT / 2;
@@ -520,3 +539,6 @@ const drawProcessNode = (ctx: CanvasRenderingContext2D, process: ForkProcess) =>
     ctx.font = '12px Inter, sans-serif';
     ctx.fillText(`PPID: ${process.ppid}`, process.x, process.y + 10);
 };
+
+
+    

@@ -1,7 +1,7 @@
 export interface ForkProcess {
   pid: number;
   ppid: number;
-  children: number[];
+  children: ForkProcess[];
   depth: number;
   x: number;
   y: number;
@@ -21,27 +21,7 @@ const createProcess = (ppid: number, depth: number): ForkProcess => {
   };
 };
 
-const findProcessInTree = (root: ForkProcess, pid: number): ForkProcess | null => {
-    const queue: ForkProcess[] = [root];
-    const visited = new Set<number>();
-
-    while(queue.length > 0) {
-        const current = queue.shift()!;
-        if(visited.has(current.pid)) continue;
-        visited.add(current.pid);
-
-        if (current.pid === pid) return current;
-
-        // This is inefficient; a flat map is better.
-        // For now, we manually search. A better implementation would pass the map around.
-        // This part of the logic requires finding the actual child objects, not just PIDs.
-        // Let's assume a flat map is built elsewhere before calling this.
-    }
-    return null;
-}
-
-
-const executeCode = (lines: string[], process: ForkProcess, processMap: Map<number, ForkProcess>, startLine: number, isChildOfFork: boolean) => {
+const executeCode = (lines: string[], process: ForkProcess, startLine: number, isChildOfFork: boolean) => {
   let isExecuting = true;
 
   for (let i = startLine; i < lines.length; i++) {
@@ -61,11 +41,10 @@ const executeCode = (lines: string[], process: ForkProcess, processMap: Map<numb
       }
     } else if (line.includes('fork()')) {
       const newProcess = createProcess(process.pid, process.depth + 1);
-      process.children.push(newProcess.pid);
-      processMap.set(newProcess.pid, newProcess);
+      process.children.push(newProcess);
       
       // Child process continues from the next line
-      executeCode(lines, newProcess, processMap, i, true);
+      executeCode(lines, newProcess, i, true);
 
       // Parent process continues
       // Check for if/else structure
@@ -96,11 +75,10 @@ const executeCode = (lines: string[], process: ForkProcess, processMap: Map<numb
 
     } else if (line.startsWith('if (fork() == 0)')) {
         const newProcess = createProcess(process.pid, process.depth + 1);
-        process.children.push(newProcess.pid);
-        processMap.set(newProcess.pid, newProcess);
+        process.children.push(newProcess);
         
         // Child executes the if block
-        executeCode(lines, newProcess, processMap, i + 1, true);
+        executeCode(lines, newProcess, i + 1, true);
 
         // Parent skips the if block and looks for an else
         let braceCount = 0;
@@ -135,12 +113,12 @@ export const parseAndRunFork = (code: string): { rootProcess: ForkProcess; outpu
   outputLog.length = 0;
   
   const rootProcess = createProcess(0, 0); // PID 1, PPID 0
-  const processMap = new Map<number, ForkProcess>();
-  processMap.set(rootProcess.pid, rootProcess);
   
   const lines = code.split('\n').filter(line => line.trim() !== '');
 
-  executeCode(lines, rootProcess, processMap, 0, false);
+  executeCode(lines, rootProcess, 0, false);
 
   return { rootProcess, output: [...outputLog] };
 };
+
+    

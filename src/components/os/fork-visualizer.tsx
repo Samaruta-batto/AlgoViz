@@ -47,7 +47,13 @@ const ForkVisualizer = () => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !simulationResult) return;
+    if (!canvas || !simulationResult) {
+      if(canvas){
+        const ctx = canvas.getContext('2d');
+        if(ctx) ctx.clearRect(0,0, canvas.width, canvas.height);
+      }
+      return;
+    };
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     drawProcessTree(ctx, simulationResult.rootProcess);
@@ -140,3 +146,5 @@ const ForkVisualizer = () => {
 };
 
 export default ForkVisualizer;
+
+    
