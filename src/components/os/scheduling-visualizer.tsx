@@ -42,6 +42,8 @@ const SchedulingVisualizer = () => {
   const [avgTurnaroundTime, setAvgTurnaroundTime] = useState(0);
   const [avgWaitingTime, setAvgWaitingTime] = useState(0);
   const { toast } = useToast();
+  
+  const isPriorityBased = useMemo(() => ['Priority', 'Priority-P'].includes(algorithm), [algorithm]);
 
   const handleAddProcess = () => {
     const newProcess: Process = {
@@ -177,6 +179,10 @@ const SchedulingVisualizer = () => {
                 const startTime = Math.max(currentTime, currentProcess.arrivalTime);
                 const finishTime = startTime + currentProcess.burstTime;
 
+                if(startTime > currentTime) {
+                    chart.push({ processName: 'Idle', start: currentTime, end: startTime });
+                }
+
                 chart.push({ processName: currentProcess.name, start: startTime, end: finishTime });
                 
                 currentProcess.finishTime = finishTime;
@@ -237,7 +243,7 @@ const SchedulingVisualizer = () => {
                             <TableHead>Process</TableHead>
                             <TableHead>Arrival</TableHead>
                             <TableHead>Burst</TableHead>
-                            <TableHead>Priority</TableHead>
+                            {isPriorityBased && <TableHead>Priority</TableHead>}
                             <TableHead className="text-right"></TableHead>
                             </TableRow>
                         </TableHeader>
@@ -251,9 +257,9 @@ const SchedulingVisualizer = () => {
                                 <TableCell>
                                 <Input type="number" value={p.burstTime} onChange={e => handleProcessChange(p.id, 'burstTime', e.target.value)} className="h-8 w-16" />
                                 </TableCell>
-                                <TableCell>
+                                {isPriorityBased && <TableCell>
                                 <Input type="number" value={p.priority} onChange={e => handleProcessChange(p.id, 'priority', e.target.value)} className="h-8 w-16" />
-                                </TableCell>
+                                </TableCell>}
                                 <TableCell className="text-right">
                                 <Button variant="ghost" size="icon" onClick={() => handleRemoveProcess(p.id)} className="h-8 w-8">
                                     <Trash2 className="h-4 w-4" />
@@ -367,7 +373,7 @@ const SchedulingVisualizer = () => {
                     <TableHead>Process</TableHead>
                     <TableHead>Arrival</TableHead>
                     <TableHead>Burst</TableHead>
-                    <TableHead>Priority</TableHead>
+                    {isPriorityBased && <TableHead>Priority</TableHead>}
                     <TableHead>Finish</TableHead>
                     <TableHead>Turnaround</TableHead>
                     <TableHead>Waiting</TableHead>
@@ -379,7 +385,7 @@ const SchedulingVisualizer = () => {
                         <TableCell>{p.name}</TableCell>
                         <TableCell>{p.arrivalTime}</TableCell>
                         <TableCell>{p.burstTime}</TableCell>
-                        <TableCell>{p.priority}</TableCell>
+                        {isPriorityBased && <TableCell>{p.priority}</TableCell>}
                         <TableCell>{p.finishTime}</TableCell>
                         <TableCell>{p.turnaroundTime?.toFixed(2)}</TableCell>
                         <TableCell>{p.waitingTime?.toFixed(2)}</TableCell>
