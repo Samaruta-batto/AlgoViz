@@ -282,8 +282,8 @@ export const drawTree = (ctx: CanvasRenderingContext2D, stepOrRoot: HistoryStep 
 
 
 const drawBTreeNode = (ctx: CanvasRenderingContext2D, node: Node, step: HistoryStep | null) => {
+    if (!node.keys || node.keys.length === 0) return;
     const keyCount = node.keys.length;
-    if (keyCount === 0) return;
 
     const boxWidth = keyCount * B_TREE_KEY_WIDTH + (keyCount -1) * 2;
     const startX = node.x - boxWidth / 2;
@@ -356,7 +356,7 @@ const drawBinaryNode = (ctx: CanvasRenderingContext2D, node: Node) => {
     ctx.font = 'bold 14px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(node.value.toString(), node.x, node.y);
+    ctx.fillText(node.value?.toString() ?? '', node.x, node.y);
 };
 
 
@@ -529,3 +529,4 @@ const drawProcessNode = (ctx: CanvasRenderingContext2D, process: ForkProcess) =>
     ctx.font = '12px Inter, sans-serif';
     ctx.fillText(`PPID: ${process.ppid}`, process.x, process.y + 10);
 };
+
