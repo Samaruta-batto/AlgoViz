@@ -39,8 +39,12 @@ const splitChild = (parent: Node, childIndex: number, order: number) => {
     const t = order;
     const medianKey = fullChild.keys[t - 1];
 
-    // Move last (t-1) keys from fullChild to newSibling
+    // Keys for the new sibling node
     newSibling.keys = fullChild.keys.splice(t);
+
+    // Keys for the original node (now the left sibling)
+    // We also remove the median key that will be promoted
+    fullChild.keys.splice(t - 1, 1);
 
     if (!fullChild.isLeaf) {
         // Move last t children from fullChild to newSibling
