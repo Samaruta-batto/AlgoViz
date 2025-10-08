@@ -258,8 +258,16 @@ const TreeVisualizer = () => {
                                         <Rewind className="h-5 w-5" />
                                     </Button>
                                     
-                                    <Button onClick={playAnimation} disabled={isNavDisabled} size="icon" className="h-12 w-12 bg-primary hover:bg-primary/90">
-                                        {isAnimating ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+                                    <Button 
+                                        onClick={playAnimation} 
+                                        disabled={isNavDisabled} 
+                                        size="icon" 
+                                        className="relative h-14 w-14 bg-primary hover:bg-primary/90 shadow-lg"
+                                    >
+                                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/75 ${!isAnimating && 'hidden'}`}></span>
+                                        <span className="relative">
+                                            {isAnimating ? <Pause className="h-7 w-7" /> : <Play className="h-7 w-7" />}
+                                        </span>
                                     </Button>
 
                                     <Button onClick={stepForward} disabled={isNavDisabled || currentStepIndex >= history.length - 1} size="icon" variant="ghost">
@@ -277,9 +285,9 @@ const TreeVisualizer = () => {
 
                     <div className="lg:col-span-2 space-y-6">
                          <Alert className="border-accent bg-accent/10 dark:bg-accent/20">
-                            <BotMessageSquare className="h-4 w-4 text-accent-foreground dark:text-accent-foreground" />
-                            <AlertTitle className="text-accent-foreground dark:text-accent-foreground">Status</AlertTitle>
-                            <AlertDescription className="text-accent-foreground/80 dark:text-accent-foreground/90">
+                            <BotMessageSquare className="h-4 w-4 text-accent dark:text-accent" />
+                            <AlertTitle className="text-accent-foreground dark:text-gray-200">Status</AlertTitle>
+                            <AlertDescription className="text-accent-foreground/80 dark:text-gray-300">
                                 {currentStep?.message || "Select a tree type and perform an operation."}
                             </AlertDescription>
                         </Alert>
