@@ -30,9 +30,9 @@ const findNodeWithKey = (node: Node | null, k: number): Node | null => {
 const splitChild = (parent: Node, childIndex: number, order: number) => {
     const root = parent.getRoot();
     const fullChild = parent.children[childIndex];
-    addHistory(history, root, `Node [${fullChild.keys.join(',')}] is full. Splitting it.`, undefined, undefined, fullChild.value);
+    addHistory(history, root, `Node [${fullChild.keys.join(',')}] is full. Splitting it.`, fullChild.value);
 
-    const newSibling = new Node(0); // Dummy value, will be updated
+    const newSibling = new Node(0); // Dummy value
     newSibling.isLeaf = fullChild.isLeaf;
     newSibling.parent = parent;
 
@@ -40,13 +40,11 @@ const splitChild = (parent: Node, childIndex: number, order: number) => {
     const medianKey = fullChild.keys[t - 1];
 
     // Move last (t-1) keys from fullChild to newSibling
-    newSibling.keys = fullChild.keys.splice(t, t - 1);
-    // Remove median key from fullChild
-    fullChild.keys.pop(); // The median was at the end of the first part
+    newSibling.keys = fullChild.keys.splice(t);
 
     if (!fullChild.isLeaf) {
         // Move last t children from fullChild to newSibling
-        newSibling.children = fullChild.children.splice(t, t);
+        newSibling.children = fullChild.children.splice(t);
         newSibling.children.forEach(child => child.parent = newSibling);
     }
 
@@ -56,28 +54,22 @@ const splitChild = (parent: Node, childIndex: number, order: number) => {
     // Move median key up to the parent
     parent.keys.splice(childIndex, 0, medianKey);
     
-    // Update .value for highlighting
-    fullChild.value = fullChild.keys[0];
-    newSibling.value = newSibling.keys[0];
-    parent.value = parent.keys[0];
-
-    addHistory(history, root, `Split complete. Median key ${medianKey} moved to parent. New nodes are [${fullChild.keys.join(',')}] and [${newSibling.keys.join(',')}].`, medianKey, undefined, parent.value);
+    addHistory(history, root, `Split complete. Median key ${medianKey} moved to parent.`, medianKey, undefined, parent.value);
 };
 
 const insertNonFull = (node: Node, key: number, order: number) => {
     const root = node.getRoot();
     
     if (node.isLeaf) {
-        addHistory(history, root, `At leaf node [${node.keys.join(',')}]. Finding position for key ${key}.`, undefined, key, node.value);
+        addHistory(history, root, `At leaf node [${node.keys.join(',')}]. Finding position for key ${key}.`, node.value);
         let i = node.keys.length - 1;
         while (i >= 0 && key < node.keys[i]) {
             i--;
         }
         node.keys.splice(i + 1, 0, key);
-        node.value = node.keys[0];
-        addHistory(history, root, `Inserted key ${key}. Node is now [${node.keys.join(',')}].`, undefined, key, node.value);
+        addHistory(history, root, `Inserted key ${key}. Node is now [${node.keys.join(',')}].`, key);
     } else {
-        addHistory(history, root, `At internal node [${node.keys.join(',')}]. Finding child for key ${key}.`, undefined, key, node.value);
+        addHistory(history, root, `At internal node [${node.keys.join(',')}]. Finding child for key ${key}.`, node.value);
         let i = node.keys.length - 1;
         while (i >= 0 && key < node.keys[i]) {
             i--;
@@ -85,16 +77,16 @@ const insertNonFull = (node: Node, key: number, order: number) => {
         const childIndex = i + 1;
         let childToDescend = node.children[childIndex];
         
-        addHistory(history, root, `Descending to child [${childToDescend.keys.join(',')}] to insert ${key}.`, undefined, key, childToDescend.value);
+        addHistory(history, root, `Descending to child [${childToDescend.keys.join(',')}] to insert ${key}.`, childToDescend.value);
 
         if (childToDescend.keys.length === (2 * order) - 1) {
             splitChild(node, childIndex, order);
             // After split, the key might go to the new child
             if (key > node.keys[childIndex]) {
                 childToDescend = node.children[childIndex + 1];
-                 addHistory(history, root, `After split, key ${key} is greater than new parent key ${node.keys[childIndex]}. Descending to the new right sibling.`, undefined, undefined, childToDescend.value);
+                 addHistory(history, root, `After split, key ${key} is greater than new parent key ${node.keys[childIndex]}. Descending to the new right sibling.`, childToDescend.value);
             } else {
-                 addHistory(history, root, `After split, key ${key} is less than new parent key ${node.keys[childIndex]}. Descending to the original child.`, undefined, undefined, childToDescend.value);
+                 addHistory(history, root, `After split, key ${key} is less than new parent key ${node.keys[childIndex]}. Descending to the original child.`, childToDescend.value);
             }
         }
         insertNonFull(childToDescend, key, order);
@@ -114,7 +106,7 @@ export const insertBTree = (initialRoot: Node | null, key: number, order: number
     if (!root) {
         root = new Node(key);
         root.isLeaf = true;
-        addHistory(history, root, `Tree is empty. Created new root with key ${key}.`, undefined, key);
+        addHistory(history, root, `Tree is empty. Created new root with key ${key}.`, key);
     } else {
         if (root.keys.length === (2 * order) - 1) {
             addHistory(history, root, `Root [${root.keys.join(',')}] is full. Creating new root and splitting old root.`, root.value);
@@ -123,9 +115,9 @@ export const insertBTree = (initialRoot: Node | null, key: number, order: number
             newRoot.children.push(root);
             root.parent = newRoot;
             
-            root = newRoot; // Set new root before split
-            splitChild(root, 0, order);
-            insertNonFull(root, key, order);
+            splitChild(newRoot, 0, order);
+            insertNonFull(newRoot, key, order);
+            root = newRoot;
         } else {
             insertNonFull(root, key, order);
         }
@@ -149,9 +141,10 @@ function findKey(node: Node, k: number): [boolean, number] {
 
 function removeFromLeaf(node: Node, idx: number) {
     const root = node.getRoot();
+    if (!root) return;
     const key = node.keys[idx];
     node.keys.splice(idx, 1);
-    addHistory(history, root, `Case 1: Key ${key} is in a leaf with enough keys. Removed it directly.`, undefined, key, node.value);
+    addHistory(history, root, `Case 1: Key ${key} is in a leaf with enough keys. Removed it directly.`, key);
 }
 
 function getPred(node: Node, idx: number): number {
@@ -172,6 +165,7 @@ function getSucc(node: Node, idx: number): number {
 
 function borrowFromPrev(node: Node, idx: number) {
     const root = node.getRoot();
+    if (!root) return;
     const child = node.children[idx];
     const sibling = node.children[idx - 1];
     const parentKey = node.keys[idx-1];
@@ -190,11 +184,12 @@ function borrowFromPrev(node: Node, idx: number) {
         childToMove.parent = child;
         child.children.unshift(childToMove);
     }
-    addHistory(history, root, `Borrow complete.`, undefined, undefined, child.value);
+    addHistory(history, root, `Borrow complete.`, parentKey, undefined, child.value);
 }
 
 function borrowFromNext(node: Node, idx: number) {
     const root = node.getRoot();
+    if (!root) return;
     const child = node.children[idx];
     const sibling = node.children[idx + 1];
     const parentKey = node.keys[idx];
@@ -213,11 +208,12 @@ function borrowFromNext(node: Node, idx: number) {
         childToMove.parent = child;
         child.children.push(childToMove);
     }
-    addHistory(history, root, `Borrow complete.`, undefined, undefined, child.value);
+    addHistory(history, root, `Borrow complete.`, parentKey, undefined, child.value);
 }
 
 function merge(node: Node, idx: number) {
     const root = node.getRoot();
+    if (!root) return;
     const child = node.children[idx];
     const sibling = node.children[idx + 1];
     const parentKey = node.keys[idx];
@@ -258,6 +254,7 @@ function fill(node: Node, idx: number, order: number) {
 
 function removeFromNonLeaf(node: Node, idx: number, order: number) {
     const root = node.getRoot();
+    if (!root) return;
     const k = node.keys[idx];
     const t = order;
     
@@ -283,10 +280,11 @@ function removeFromNonLeaf(node: Node, idx: number, order: number) {
 
 function deleteBTreeRecursive(node: Node, k: number, order: number) {
     const root = node.getRoot();
+    if (!root) return;
     const t = order;
     const [keyFound, idx] = findKey(node, k);
     
-    addHistory(history, root, `Searching for key ${k} in node [${node.keys.join(',')}]`, undefined, k, node.value);
+    addHistory(history, root, `Searching for key ${k} in node [${node.keys.join(',')}]`, k, undefined, node.value);
 
     if (keyFound) { // Key k is in this node
         if (node.isLeaf) {
@@ -301,7 +299,7 @@ function deleteBTreeRecursive(node: Node, k: number, order: number) {
         }
 
         const childIdx = idx;
-        const isLastChild = (childIdx === node.keys.length);
+        const isLastChild = (childIdx === node.children.length);
         
         // Ensure child has at least t keys before descending
         if (node.children[childIdx].keys.length < t) {
@@ -309,8 +307,8 @@ function deleteBTreeRecursive(node: Node, k: number, order: number) {
             fill(node, childIdx, order);
         }
         
-        // After fill, if a merge happened with the last child, we need to descend into the merged node
-        const newChildIdx = isLastChild && childIdx > node.keys.length ? childIdx - 1 : childIdx;
+        // After fill, the child to descend into might have changed if a merge happened
+        const newChildIdx = childIdx > node.keys.length ? childIdx - 1 : childIdx;
         
         deleteBTreeRecursive(node.children[newChildIdx], k, order);
     }
@@ -333,19 +331,16 @@ export const deleteBTree = (initialRoot: Node | null, k: number, order: number):
 
     deleteBTreeRecursive(root, k, order);
     
-    let finalRoot = root.getRoot();
-
     // If the root node has no keys, make its first child the new root.
-    if (finalRoot.keys.length === 0) {
-        addHistory(history, finalRoot, `Root became empty. Updating root to its first child.`);
-        if (finalRoot.isLeaf) { // Tree is now empty
+    if (root.keys.length === 0) {
+        addHistory(history, root, `Root became empty. Updating root to its first child.`);
+        if (root.isLeaf) { // Tree is now empty
             root = null;
         } else {
-            root = finalRoot.children[0];
-            if(root) root.parent = null;
+            const newRoot = root.children[0];
+            if (newRoot) newRoot.parent = null;
+            root = newRoot;
         }
-    } else {
-        root = finalRoot;
     }
 
     addHistory(history, root, `B-Tree deletion of ${k} complete.`);
