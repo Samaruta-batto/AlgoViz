@@ -65,7 +65,7 @@ const TreeVisualizer = () => {
                 animationIntervalRef.current = null;
             }
         }
-    }, [currentStepIndex, history]);
+    }, [currentStepIndex, history.length]);
 
     const stepBack = useCallback(() => {
         if (currentStepIndex > 0) {
@@ -74,6 +74,8 @@ const TreeVisualizer = () => {
     }, [currentStepIndex]);
 
     const playAnimation = useCallback(() => {
+        if (history.length === 0) return;
+
         if (isAnimating) {
             cleanupAnimation();
             return;
@@ -87,7 +89,7 @@ const TreeVisualizer = () => {
         animationIntervalRef.current = setInterval(() => {
             stepForward();
         }, 800);
-    }, [isAnimating, currentStepIndex, history.length, cleanupAnimation, stepForward]);
+    }, [isAnimating, currentStepIndex, history.length, cleanupAnimation, stepForward, history.length]);
     
     useEffect(() => {
         if(isAnimating && currentStepIndex === history.length - 1) {
