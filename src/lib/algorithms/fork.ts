@@ -1,3 +1,4 @@
+
 export interface ForkProcess {
   pid: number;
   ppid: number;
@@ -120,5 +121,3 @@ export const parseAndRunFork = (code: string): { rootProcess: ForkProcess; outpu
 
   return { rootProcess, output: [...outputLog] };
 };
-
-    

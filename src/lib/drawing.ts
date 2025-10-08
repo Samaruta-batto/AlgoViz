@@ -1,3 +1,4 @@
+
 import { Node, HistoryStep } from './types';
 import type { ForkProcess } from './algorithms/fork';
 
@@ -364,127 +365,107 @@ const drawBinaryNode = (ctx: CanvasRenderingContext2D, node: Node) => {
 const PROCESS_NODE_WIDTH = 120;
 const PROCESS_NODE_HEIGHT = 50;
 
-const layoutProcessTree = (process: ForkProcess, depth: number, siblingsMap: Map<number, number[]>, processMap: Map<number, ForkProcess>) => {
-    process.y = depth * (PROCESS_NODE_HEIGHT + 40) + PROCESS_NODE_HEIGHT;
-
-    const siblings = siblingsMap.get(process.ppid) || [];
-    const siblingIndex = siblings.indexOf(process.pid);
-    
+// This function calculates the x-coordinates for each node in a bottom-up fashion
+const calculateInitialX = (process: ForkProcess, processMap: Map<number, ForkProcess>): number => {
     if (process.children.length === 0) {
-        process.x = 0; // Will be set relative to parent
-        return;
-    }
-
-    let childrenX = 0;
-    process.children.forEach(childPid => {
-        const child = processMap.get(childPid);
-        if (child) {
-            layoutProcessTree(child, depth + 1, siblingsMap, processMap);
-             child.x += childrenX;
-             childrenX += getSubtreeWidth(child, processMap) + 40;
-        }
-    });
-
-    const firstChild = processMap.get(process.children[0]);
-    const lastChild = processMap.get(process.children[process.children.length - 1]);
-    
-    if (firstChild && lastChild) {
-        const childrenCenter = (firstChild.x + lastChild.x) / 2;
-        process.x = childrenCenter;
-    } else {
         process.x = 0;
+        return PROCESS_NODE_WIDTH + 40; // width of node + margin
     }
-};
 
-const getSubtreeWidth = (process: ForkProcess, processMap: Map<number, ForkProcess>): number => {
-    if (process.children.length === 0) {
-        return PROCESS_NODE_WIDTH;
+    let subtreeWidth = 0;
+    process.children.forEach(child => {
+        subtreeWidth += calculateInitialX(child, processMap);
+    });
+
+    const firstChild = process.children[0];
+    const lastChild = process.children[process.children.length - 1];
+    
+    // Center the parent over its children
+    process.x = firstChild.x + (lastChild.x - firstChild.x) / 2;
+
+    return subtreeWidth;
+}
+
+// Repositions the subtrees to avoid overlaps
+const fixOverlaps = (process: ForkProcess, processMap: Map<number, ForkProcess>) => {
+    for (let i = 0; i < process.children.length - 1; i++) {
+        const rightContour = getContour(process.children[i], 'right', processMap);
+        const leftContour = getContour(process.children[i + 1], 'left', processMap);
+        
+        let maxShift = 0;
+        for (const level in rightContour) {
+            if (leftContour[level] !== undefined) {
+                const shift = rightContour[level] - leftContour[level];
+                maxShift = Math.max(maxShift, shift);
+            }
+        }
+
+        if (maxShift > 0) {
+            const shiftAmount = maxShift + 40; // add margin
+            shiftSubtree(process.children[i + 1], shiftAmount, processMap);
+        }
     }
-    let width = 0;
-    process.children.forEach(childPid => {
-        const child = processMap.get(childPid);
-        if (child) {
-            width += getSubtreeWidth(child, processMap) + 40;
-        }
-    });
-    return Math.max(width - 40, PROCESS_NODE_WIDTH);
-};
+}
 
-const positionProcessTree = (process: ForkProcess, xOffset: number, yOffset: number, processMap: Map<number, ForkProcess>) => {
-    process.x += xOffset;
-    process.y += yOffset;
-    process.children.forEach(childPid => {
-        const child = processMap.get(childPid);
-        if (child) {
-            positionProcessTree(child, xOffset, yOffset, processMap);
-        }
-    });
+const getContour = (process: ForkProcess, side: 'left' | 'right', processMap: Map<number, ForkProcess>, contours: {[level: number]: number} = {}, level = 0): {[level: number]: number} => {
+    const extremeX = process.x + (side === 'left' ? -PROCESS_NODE_WIDTH / 2 : PROCESS_NODE_WIDTH / 2);
+    
+    if (contours[level] === undefined || (side === 'left' ? extremeX < contours[level] : extremeX > contours[level])) {
+        contours[level] = extremeX;
+    }
+
+    process.children.forEach(child => getContour(child, side, processMap, contours, level + 1));
+    return contours;
+}
+
+const shiftSubtree = (process: ForkProcess, shiftAmount: number, processMap: Map<number, ForkProcess>) => {
+    process.x += shiftAmount;
+    process.children.forEach(child => shiftSubtree(child, shiftAmount, processMap));
+}
+
+const setNodePositions = (process: ForkProcess, depth: number, processMap: Map<number, ForkProcess>) => {
+    process.y = depth * (PROCESS_NODE_HEIGHT + 60) + PROCESS_NODE_HEIGHT;
+
+    for (const child of process.children) {
+        setNodePositions(child, depth + 1, processMap);
+    }
 };
 
 export const drawProcessTree = (ctx: CanvasRenderingContext2D, rootProcess: ForkProcess) => {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    if (!rootProcess) return;
 
     const processMap = new Map<number, ForkProcess>();
-    const siblingsMap = new Map<number, number[]>();
     const queue: ForkProcess[] = [rootProcess];
     let maxDepth = 0;
-
-    // Build a map of all processes for easy lookup
-    const buildMapQueue: ForkProcess[] = [rootProcess];
-    const allProcesses: ForkProcess[] = [];
-    while(buildMapQueue.length > 0) {
-        const p = buildMapQueue.shift()!;
-        allProcesses.push(p);
-        // This is tricky because the children are just PIDs.
-        // We need the full tree structure first.
-    }
-     // The `rootProcess` object contains the entire nested structure.
-    const traverseAndMap = (p: ForkProcess) => {
+    
+    while(queue.length > 0) {
+        const p = queue.shift()!;
         processMap.set(p.pid, p);
         maxDepth = Math.max(maxDepth, p.depth);
-
-        if (!siblingsMap.has(p.ppid)) {
-            siblingsMap.set(p.ppid, []);
-        }
-        siblingsMap.get(p.ppid)!.push(p.pid);
-
-        // To traverse, we need to find the child objects.
-        // The `fork.ts` creates the nested structure, but `drawing.ts` gets a fresh copy.
-        // This suggests the structure passed to `drawProcessTree` IS the full tree.
-    };
-    
-    const queueForMap = [rootProcess];
-    const visited = new Set<number>();
-    while(queueForMap.length > 0) {
-        const current = queueForMap.shift()!;
-        if(visited.has(current.pid)) continue;
-        visited.add(current.pid);
-
-        processMap.set(current.pid, current);
-        maxDepth = Math.max(maxDepth, current.depth);
-
-        if(!siblingsMap.has(current.ppid)){
-            siblingsMap.set(current.ppid, []);
-        }
-        siblingsMap.get(current.ppid)!.push(current.pid);
-
-        // To find the child objects, we assume they are nested inside `rootProcess`
-        // This part of the logic is brittle. Let's assume `rootProcess` is fully populated.
-        // The `parseAndRunFork` function returns the root, but how are children attached?
-        // Ah, `executeCode` in `fork.ts` does `process.children.push(newProcess.pid)`.
-        // This means the children array contains only PIDs, not objects.
-        // The `drawProcessTree` function needs to reconstruct the tree or get a different format.
-        // The `findProcess` function was the attempt to solve this, but it was flawed.
-        
-        // Let's correct this by having `parseAndRunFork` return the map as well.
-        // For now, let's just fix the drawing part assuming a correct map.
+        p.children.forEach(child => queue.push(child));
     }
+    ctx.canvas.height = Math.max(400, (maxDepth + 1) * (PROCESS_NODE_HEIGHT + 60));
 
 
-    ctx.canvas.height = Math.max(400, (maxDepth + 1) * (PROCESS_NODE_HEIGHT + 40));
-
-    layoutProcessTree(rootProcess, 0, siblingsMap, processMap);
+    // This is a simplified version of a tree layout algorithm (e.g., Reingold-Tilford)
+    const layout = (process: ForkProcess) => {
+        process.children.forEach(layout);
+        
+        let currentX = 0;
+        if(process.children.length > 0) {
+            process.children.forEach((child, i) => {
+                 shiftSubtree(child, currentX, processMap);
+                 const childWidth = getSubtreeWidth(child, processMap);
+                 currentX += childWidth;
+            });
+            fixOverlaps(process, processMap);
+        }
+    }
     
+    setNodePositions(rootProcess, 0, processMap);
+    calculateInitialX(rootProcess, processMap);
+
     let minX = Infinity, maxX = -Infinity;
     processMap.forEach(p => {
         minX = Math.min(minX, p.x - PROCESS_NODE_WIDTH / 2);
@@ -494,23 +475,20 @@ export const drawProcessTree = (ctx: CanvasRenderingContext2D, rootProcess: Fork
     const requiredWidth = maxX - minX + 40;
     ctx.canvas.width = Math.max(CANVAS_WIDTH, requiredWidth);
     
-    const startX = ctx.canvas.width / 2 - (minX + (maxX - minX) / 2);
-    positionProcessTree(rootProcess, startX, 0, processMap);
+    const xOffset = ctx.canvas.width / 2 - (minX + (maxX - minX) / 2);
+    shiftSubtree(rootProcess, xOffset, processMap);
 
 
     // Draw lines first
     processMap.forEach(process => {
-        if (process.ppid !== 0) {
-            const parent = processMap.get(process.ppid);
-            if (parent) {
-                ctx.beginPath();
-                ctx.moveTo(parent.x, parent.y + PROCESS_NODE_HEIGHT / 2);
-                ctx.lineTo(process.x, process.y - PROCESS_NODE_HEIGHT / 2);
-                ctx.strokeStyle = '#6b7280';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-            }
-        }
+        process.children.forEach(child => {
+            ctx.beginPath();
+            ctx.moveTo(process.x, process.y + PROCESS_NODE_HEIGHT / 2);
+            ctx.lineTo(child.x, child.y - PROCESS_NODE_HEIGHT / 2);
+            ctx.strokeStyle = '#6b7280';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        });
     });
 
     // Draw nodes on top
@@ -518,6 +496,18 @@ export const drawProcessTree = (ctx: CanvasRenderingContext2D, rootProcess: Fork
         drawProcessNode(ctx, process);
     });
 }
+
+const getSubtreeWidth = (process: ForkProcess, processMap: Map<number, ForkProcess>): number => {
+    if (process.children.length === 0) {
+        return PROCESS_NODE_WIDTH;
+    }
+    let width = 0;
+    process.children.forEach(child => {
+        width += getSubtreeWidth(child, processMap) + 40; // Add margin
+    });
+    return Math.max(width - 40, PROCESS_NODE_WIDTH);
+};
+
 
 const drawProcessNode = (ctx: CanvasRenderingContext2D, process: ForkProcess) => {
     const x = process.x - PROCESS_NODE_WIDTH / 2;
@@ -539,6 +529,3 @@ const drawProcessNode = (ctx: CanvasRenderingContext2D, process: ForkProcess) =>
     ctx.font = '12px Inter, sans-serif';
     ctx.fillText(`PPID: ${process.ppid}`, process.x, process.y + 10);
 };
-
-
-    
