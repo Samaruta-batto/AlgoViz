@@ -41,9 +41,9 @@ const layoutBTree = (node: Node | null, depth: number, order: number) => {
 const positionBTree = (node: Node | null, xOffset: number): number => {
     if (!node) return 0;
     
-    if (node.isLeaf) {
-        node.x = xOffset + node.width / 2;
-        return node.width + B_TREE_KEY_WIDTH;
+    if (node.isLeaf || !Array.isArray(node.children)) {
+        node.x = xOffset + (node.width || 0) / 2;
+        return (node.width || 0) + B_TREE_KEY_WIDTH;
     }
 
     let childrenWidth = 0;
@@ -57,10 +57,10 @@ const positionBTree = (node: Node | null, xOffset: number): number => {
     if (firstChild && lastChild) {
         node.x = (firstChild.x + lastChild.x) / 2;
     } else {
-        node.x = xOffset + node.width / 2;
+        node.x = xOffset + (node.width || 0) / 2;
     }
     
-    return childrenWidth > 0 ? childrenWidth : node.width + B_TREE_KEY_WIDTH;
+    return childrenWidth > 0 ? childrenWidth : (node.width || 0) + B_TREE_KEY_WIDTH;
 };
 
 
@@ -530,5 +530,6 @@ const drawProcessNode = (ctx: CanvasRenderingContext2D, process: ForkProcess) =>
     ctx.font = '12px Inter, sans-serif';
     ctx.fillText(`PPID: ${process.ppid}`, process.x, process.y + 10);
 };
+
 
 
