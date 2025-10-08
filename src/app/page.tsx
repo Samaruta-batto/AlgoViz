@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Play, Pause, Rewind, FastForward, Loader2, Binary, BotMessageSquare } from 'lucide-react';
+import { Play, Pause, Rewind, FastForward, BotMessageSquare } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type { Node, HistoryStep } from '@/lib/types';
-import { insertBST, deleteBST, insertRBTree, deleteRBTree, insertBTree, deleteBTree } from '@/lib/algorithms';
+import { insertBST, deleteBST } from '@/lib/algorithms/bst';
+import { insertRBTree, deleteRBTree } from '@/lib/algorithms/rbt';
+import { insertBTree, deleteBTree } from '@/lib/algorithms/btree';
 import { drawTree, CANVAS_WIDTH } from '@/lib/drawing';
 
 
@@ -244,7 +246,12 @@ const TreeVisualizer = () => {
                                         value={inputValue}
                                         onChange={(e) => setInputValue(e.target.value)}
                                         placeholder="e.g., 42"
-                                        onKeyDown={(e) => e.key === 'Enter' && handleOperation('insert')}
+                                        onKeyDown={(e) => {
+                                             if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleOperation('insert');
+                                            }
+                                        }}
                                     />
                                     <Button onClick={() => handleOperation('insert')} className="bg-green-600 hover:bg-green-700">Insert</Button>
                                     <Button variant="destructive" onClick={() => handleOperation('delete')}>Delete</Button>
@@ -339,3 +346,5 @@ const TreeVisualizer = () => {
 };
 
 export default TreeVisualizer;
+
+    
