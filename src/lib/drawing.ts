@@ -80,7 +80,7 @@ const layoutBinomialTree = (node: Node, x: number, y: number) => {
 
     if (node.child) {
         const children = [];
-        let currentChild = node.child;
+        let currentChild: Node | null = node.child;
         while(currentChild) {
             children.push(currentChild);
             currentChild = currentChild.sibling;
@@ -333,8 +333,8 @@ const drawBTreeNode = (ctx: CanvasRenderingContext2D, node: Node, step: HistoryS
 }
 
 const drawBinaryNode = (ctx: CanvasRenderingContext2D, node: Node) => {
-    let fillColor = node.color === 'red' ? '#EF4444' : '#10B981';
-    let strokeColor = node.color === 'red' ? '#B91C1C' : '#047857';
+    let fillColor = node.color === 'red' ? '#EF4444' : node.color === 'black' ? '#1F2937' : '#10B981';
+    let strokeColor = node.color === 'red' ? '#B91C1C' : node.color === 'black' ? '#000000' : '#047857';
 
     if (node.highlighted) {
         fillColor = '#FBBF24';

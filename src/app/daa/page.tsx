@@ -372,6 +372,10 @@ const TreeVisualizer = () => {
                                     <span>Red Node (RBT)</span>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-gray-800 border-2 border-black"></div>
+                                    <span>Black Node (RBT)</span>
+                                </div>
+                                <div className="flex items-center gap-2">
                                     <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-emerald-700"></div>
                                     <span>Default Node State</span>
                                 </div>

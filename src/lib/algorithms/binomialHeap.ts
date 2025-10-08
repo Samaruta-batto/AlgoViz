@@ -52,7 +52,7 @@ const mergeHeaps = (h1: Node | null, h2: Node | null): Node | null => {
     // Create a dummy root to represent the heap for visualization
     const dummyRoot = new Node(0);
     dummyRoot.children = [];
-    let current = head;
+    let current: Node | null = head;
     while (current) {
         current.parent = dummyRoot;
         dummyRoot.children.push(current);
@@ -201,7 +201,7 @@ export const deleteBinomialHeap = (initialRoot: Node | null): HistoryStep[] => {
         let curr: Node | null = childrenHeap;
         while(curr) {
             curr.parent = null;
-            let nextTemp = curr.sibling;
+            const nextTemp: Node | null = curr.sibling;
             curr.sibling = prev;
             prev = curr;
             curr = nextTemp;

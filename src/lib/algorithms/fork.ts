@@ -22,88 +22,173 @@ const createProcess = (ppid: number, depth: number): ForkProcess => {
   };
 };
 
-const executeCode = (lines: string[], process: ForkProcess, startLine: number, isChildOfFork: boolean) => {
-  let isExecuting = true;
-
-  for (let i = startLine; i < lines.length; i++) {
+const executeCode = (lines: string[], process: ForkProcess, startLine: number, endLine: number, isChild: boolean) => {
+  for (let i = startLine; i < endLine && i < lines.length; i++) {
     const line = lines[i].trim();
-    if (!isExecuting) {
-      if (line === '}') {
-        isExecuting = true;
-      }
-      continue;
-    }
-
+    
     if (line.startsWith('printf')) {
       const match = line.match(/printf\("([^"]*)"\)/);
       if (match) {
         const output = match[1].replace(/\\n/g, '\n');
         outputLog.push(`[PID ${process.pid}]: ${output}`);
       }
-    } else if (line.includes('fork()')) {
-      const newProcess = createProcess(process.pid, process.depth + 1);
-      process.children.push(newProcess);
+    } 
+    else if (line.startsWith('if (fork() == 0)') || line.startsWith('if(fork() == 0)') || line.startsWith('if(fork()==0)')) {
+      const childProcess = createProcess(process.pid, process.depth + 1);
+      process.children.push(childProcess);
       
-      // Child process continues from the next line
-      executeCode(lines, newProcess, i, true);
-
-      // Parent process continues
-      // Check for if/else structure
-      const nextLine = lines[i + 1]?.trim();
-      if (nextLine === '{') {
-         // This is the parent's block after an `if(fork() == 0)`
-         // We need to skip it.
-         let braceCount = 1;
-         let j = i + 2;
-         while(j < lines.length && braceCount > 0) {
-             const l = lines[j].trim();
-             if (l === '{') braceCount++;
-             if (l === '}') braceCount--;
-             j++;
-         }
-         i = j - 1;
-
-         // Check if there is an `else` block for the parent to execute
-         const elseLine = lines[j]?.trim();
-         if(elseLine === 'else') {
-             // Let the parent continue into the else block
-         } else {
-            // No else block, parent continues after the if block
-            i = j -1;
-         }
-
-      }
-
-    } else if (line.startsWith('if (fork() == 0)')) {
-        const newProcess = createProcess(process.pid, process.depth + 1);
-        process.children.push(newProcess);
-        
-        // Child executes the if block
-        executeCode(lines, newProcess, i + 1, true);
-
-        // Parent skips the if block and looks for an else
-        let braceCount = 0;
+      // Check if brace is on same line
+      let braceCount = 0;
+      let ifStart = i + 1;
+      let ifEnd = i + 1;
+      let hasOpenBrace = false;
+      
+      if (line.includes('{')) {
+        // Brace on same line as if
+        hasOpenBrace = true;
+        ifStart = i + 1;
+        braceCount = 1;
         let j = i + 1;
-        do {
-            const l = lines[j]?.trim();
-            if (l === '{') braceCount++;
-            else if (l === '}') braceCount--;
+        
+        while (j < lines.length && braceCount > 0) {
+          const l = lines[j].trim();
+          if (l.includes('{')) braceCount++;
+          if (l.includes('}')) braceCount--;
+          if (braceCount === 0) {
+            ifEnd = j;
+            break;
+          }
+          j++;
+        }
+      } else if (lines[i + 1]?.trim() === '{') {
+        // Brace on next line
+        hasOpenBrace = true;
+        ifStart = i + 2;
+        braceCount = 1;
+        let j = i + 2;
+        
+        while (j < lines.length && braceCount > 0) {
+          const l = lines[j].trim();
+          if (l.includes('{')) braceCount++;
+          if (l.includes('}')) braceCount--;
+          if (braceCount === 0) {
+            ifEnd = j;
+            break;
+          }
+          j++;
+        }
+      } else {
+        // Single line if statement
+        ifStart = i + 1;
+        ifEnd = i + 2;
+      }
+      
+      // Check for else block
+      let elseStart = -1;
+      let elseEnd = -1;
+      const elseLineIndex = hasOpenBrace ? ifEnd : ifEnd;
+      const elseLine = lines[elseLineIndex]?.trim();
+      
+      // Handle various else patterns: "else", "} else {", "} else", "else {"
+      if (elseLine === 'else' || elseLine?.startsWith('else ') || elseLine?.includes('else')) {
+        let elseKeywordLine = elseLineIndex;
+        
+        if (elseLine.includes('}') && elseLine.includes('else')) {
+          // Pattern: "} else {" or "} else"
+          if (elseLine.includes('{')) {
+            // "} else {"
+            elseStart = elseLineIndex + 1;
+            braceCount = 1;
+            let j = elseLineIndex + 1;
+            
+            while (j < lines.length && braceCount > 0) {
+              const l = lines[j].trim();
+              if (l.includes('{')) braceCount++;
+              if (l.includes('}')) braceCount--;
+              if (braceCount === 0) {
+                elseEnd = j;
+                break;
+              }
+              j++;
+            }
+          } else {
+            // "} else" - next line is the statement
+            elseStart = elseLineIndex + 1;
+            elseEnd = elseLineIndex + 2;
+          }
+        } else if (elseLine === 'else') {
+          // "else" on its own line
+          if (lines[elseLineIndex + 1]?.trim() === '{' || lines[elseLineIndex + 1]?.trim().startsWith('else {')) {
+            // Braced else block
+            elseStart = elseLineIndex + 2;
+            braceCount = 1;
+            let j = elseLineIndex + 2;
+            
+            while (j < lines.length && braceCount > 0) {
+              const l = lines[j].trim();
+              if (l.includes('{')) braceCount++;
+              if (l.includes('}')) braceCount--;
+              if (braceCount === 0) {
+                elseEnd = j;
+                break;
+              }
+              j++;
+            }
+          } else {
+            // Single line else on next line
+            elseStart = elseLineIndex + 1;
+            elseEnd = elseLineIndex + 2;
+          }
+        } else if (elseLine.startsWith('else ')) {
+          // Inline else statement (e.g., "else printf(...);")
+          const elseStatement = elseLine.substring(5).trim(); // Remove "else "
+          const match = elseStatement.match(/printf\("([^"]*)"\)/);
+          if (match) {
+            const output = match[1].replace(/\\n/g, '\n');
+            outputLog.push(`[PID ${process.pid}]: ${output}`);
+          }
+          i = elseLineIndex; // Will be incremented by loop
+          // Child executes if block first
+          executeCode(lines, childProcess, ifStart, ifEnd, true);
+          continue; // Skip the rest
+        } else if (elseLine.startsWith('else {')) {
+          // "else {" on same line
+          elseStart = elseLineIndex + 1;
+          braceCount = 1;
+          let j = elseLineIndex + 1;
+          
+          while (j < lines.length && braceCount > 0) {
+            const l = lines[j].trim();
+            if (l.includes('{')) braceCount++;
+            if (l.includes('}')) braceCount--;
+            if (braceCount === 0) {
+              elseEnd = j;
+              break;
+            }
             j++;
-        } while (j < lines.length && braceCount > 0);
-
-        if (lines[j]?.trim() === 'else') {
-            // Parent continues execution from inside the else block
-             i = j; // The loop will increment to start inside the else block
-        } else {
-            // Parent skips the if block entirely
-            i = j - 1;
+          }
         }
-
-    } else if (line === 'else') {
-        if (isChildOfFork) {
-            // A child from `if(fork() == 0)` should not execute the else block
-            isExecuting = false;
-        }
+      }
+      
+      // Child executes the if block
+      executeCode(lines, childProcess, ifStart, ifEnd, true);
+      
+      // Parent executes the else block (if exists) or continues after
+      if (elseStart !== -1 && elseEnd !== -1) {
+        executeCode(lines, process, elseStart, elseEnd, false);
+        i = elseEnd; // Skip past the else block (loop will increment)
+      } else {
+        i = ifEnd; // Skip past the if block (loop will increment)
+      }
+    }
+    else if (line.includes('fork()')) {
+      // Simple fork() without if condition
+      const childProcess = createProcess(process.pid, process.depth + 1);
+      process.children.push(childProcess);
+      
+      // Both parent and child continue from next line
+      executeCode(lines, childProcess, i + 1, endLine, true);
+      // Parent continues normally (no skip needed)
     }
   }
 };
@@ -117,7 +202,7 @@ export const parseAndRunFork = (code: string): { rootProcess: ForkProcess; outpu
   
   const lines = code.split('\n').filter(line => line.trim() !== '');
 
-  executeCode(lines, rootProcess, 0, false);
+  executeCode(lines, rootProcess, 0, lines.length, false);
 
   return { rootProcess, output: [...outputLog] };
 };
