@@ -32,27 +32,20 @@ const splitChild = (x: Node, i: number, history: HistoryStep[], order: number) =
 
     const medianKey = y.keys[order - 1];
 
-    // Keys from median onwards go to the new node 'z'
     z.keys = y.keys.splice(order); 
-    // The median key itself is removed from y
     y.keys.pop();
 
     if (!y.isLeaf) {
-        // Children from median's corresponding position onwards go to 'z'
         z.children = y.children.splice(order);
         z.children.forEach(c => { c.parent = z; });
     }
     
-    // Insert 'z' as a new child of 'x'
     x.children.splice(i + 1, 0, z);
-    // Insert the median key into 'x'
     x.keys.splice(i, 0, medianKey);
     
-    // Assign representative values for highlighting purposes.
     y.value = y.keys.length > 0 ? y.keys[0] : -1;
     z.value = z.keys.length > 0 ? z.keys[0] : -1;
     x.value = x.keys.length > 0 ? x.keys[0] : -1;
-
 
     addHistory(history, deepCloneNode(x.getRoot()), `Split complete. Median key ${medianKey} promoted to parent [${x.keys.join(',')}].`, medianKey, undefined, x.keys.length > 0 ? x.keys[0] : undefined);
 };
@@ -80,10 +73,8 @@ const insertNonFull = (x: Node, k: number, history: HistoryStep[], order: number
         
         if (x.children[i].keys.length === 2 * order - 1) {
             splitChild(x, i, history, order);
-            // After split, the median key moves to x.keys[i].
-            // We need to check if k is greater than this new median key to decide which child to go into.
             if (k > x.keys[i]) {
-                i++; // The key k will go into the new sibling node z.
+                i++; 
             }
         }
         insertNonFull(x.children[i], k, history, order);
@@ -114,7 +105,7 @@ export const insertBTree = (initialRoot: Node | null, k: number, order: number):
         s.isLeaf = false;
         s.children.push(root);
         root.parent = s;
-        root = s; // The new root is s
+        root = s; 
         splitChild(root, 0, history, order);
         insertNonFull(root, k, history, order);
     } else {
@@ -126,7 +117,6 @@ export const insertBTree = (initialRoot: Node | null, k: number, order: number):
 };
 
 // --- Deletion ---
-// A lot of logic, so we will stub it out for now.
 const removeFromLeaf = (node: Node, keyIndex: number, history: HistoryStep[], order: number) => {
     const key = node.keys[keyIndex];
     node.keys.splice(keyIndex, 1);
@@ -275,8 +265,6 @@ const deleteBTreeRecursive = (node: Node, k: number, history: HistoryStep[], ord
             fill(node, i, history, order);
         }
         
-        // After fill, the child to descend into might have changed if we merged.
-        // Recalculate child index `i`.
          let newI = 0;
          while (newI < node.keys.length && k > node.keys[newI]) {
             newI++;
@@ -304,7 +292,6 @@ export const deleteBTree = (initialRoot: Node | null, k: number, order: number):
 
     deleteBTreeRecursive(root, k, history, order);
 
-    // If root becomes empty, the new root is its first child
     if (root.keys.length === 0) {
         addHistory(history, root, `Root became empty. Updating root.`);
         if (root.isLeaf) {
@@ -318,5 +305,3 @@ export const deleteBTree = (initialRoot: Node | null, k: number, order: number):
     addHistory(history, root, `B-Tree deletion of ${k} complete.`);
     return history;
 };
-
-    
