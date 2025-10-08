@@ -45,6 +45,11 @@ export class Node {
         this.child = null;
         this.sibling = null;
         this.isBinomialHeap = false;
+
+        // Ensure keys is always an array
+        if (!this.keys) {
+            this.keys = [];
+        }
     }
 
     getRoot(): Node {

@@ -5,8 +5,12 @@ export const deepCloneNode = (node: Node | null, parent: Node | null = null): No
 
     const newNode = new Node(node.value, node.x, node.y, node.color, parent);
     newNode.highlighted = node.highlighted;
-    newNode.keys = [...node.keys];
+    newNode.secondaryHighlighted = node.secondaryHighlighted;
+    newNode.keys = [...(node.keys || [])];
     newNode.isLeaf = node.isLeaf;
+    newNode.isBinomialHeap = node.isBinomialHeap;
+    newNode.degree = node.degree;
+
 
     if (node.left) {
         newNode.left = deepCloneNode(node.left, newNode);
@@ -15,8 +19,16 @@ export const deepCloneNode = (node: Node | null, parent: Node | null = null): No
         newNode.right = deepCloneNode(node.right, newNode);
     }
     
-    if(node.children) {
+    if (node.children) {
         newNode.children = node.children.map(child => deepCloneNode(child, newNode)).filter((child): child is Node => child !== null);
+    }
+    
+    if (node.child) {
+        newNode.child = deepCloneNode(node.child, newNode);
+    }
+    if (node.sibling) {
+        // Siblings share the same parent, so the parent should be the same as the current new node's parent
+        newNode.sibling = deepCloneNode(node.sibling, parent);
     }
 
 
@@ -28,12 +40,14 @@ export const addHistory = (history: HistoryStep[], tree: Node | null, message: s
     if (clonedTree) {
         // This is a way to associate the highlight value with a B-Tree node, since B-Tree nodes don't have a single `value`
         const findAndSetNodeValue = (n: Node) => {
-            if (n.keys.length > 0) {
+            if (n.keys && n.keys.length > 0) {
                 // Heuristic: use the first key as the "value" for highlight matching.
                 // This is imperfect but works for many cases.
                 n.value = n.keys[0]; 
             }
-            n.children.forEach(findAndSetNodeValue);
+            if (n.children) {
+                n.children.forEach(findAndSetNodeValue);
+            }
         }
         findAndSetNodeValue(clonedTree);
 
@@ -43,7 +57,9 @@ export const addHistory = (history: HistoryStep[], tree: Node | null, message: s
             n.secondaryHighlighted = false;
             if(n.left) clearHighlights(n.left);
             if(n.right) clearHighlights(n.right);
-            n.children.forEach(clearHighlights);
+            if (n.children) n.children.forEach(clearHighlights);
+            if (n.child) clearHighlights(n.child);
+            if (n.sibling) clearHighlights(n.sibling);
         };
         clearHighlights(clonedTree);
 
@@ -58,6 +74,8 @@ export const addHistory = (history: HistoryStep[], tree: Node | null, message: s
             if(n.left) findAndHighlight(n.left, val, isSecondary);
             if(n.right) findAndHighlight(n.right, val, isSecondary);
             if(n.children) n.children.forEach(c => findAndHighlight(c, val, isSecondary));
+            if(n.child) findAndHighlight(n.child, val, isSecondary);
+            if(n.sibling) findAndHighlight(n.sibling, val, isSecondary);
         }
 
         if (highlightNodeValue !== undefined && highlightNodeValue !== null) {
