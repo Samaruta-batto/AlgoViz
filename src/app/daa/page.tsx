@@ -234,7 +234,7 @@ const TreeVisualizer = () => {
                             <Home className="h-4 w-4" />
                         </Button>
                     </Link>
-                    <h1 className="text-4xl sm:text-5xl font-extrabold text-primary font-headline">TreeViz</h1>
+                    <h1 className="text-4xl sm:text-5xl font-extrabold text-primary font-headline">DAA Visualizer</h1>
                     <p className="text-muted-foreground mt-2 text-lg">A Data Structure and Algorithm Visualizer</p>
                 </header>
 

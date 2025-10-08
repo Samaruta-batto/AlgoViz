@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'TreeViz: Algorithm Visualizer',
-  description: 'Interactive step-by-step simulation for DSA concepts like BST, Red-Black Trees, and B-Trees.',
+  title: 'AlgoViz Suite: Algorithm Visualizer',
+  description: 'Interactive step-by-step simulation for DSA and OS concepts.',
 };
 
 export default function RootLayout({
