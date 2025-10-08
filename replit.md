@@ -11,6 +11,17 @@ An interactive suite for visualizing complex algorithms including Data Structure
   - Set up autoscale deployment configuration with proper build and start commands
   - Cross-origin warnings in dev are expected due to Replit's proxy environment and don't affect functionality
 
+- **Bug Fixes & Improvements**:
+  - **Red-Black Tree Visualization**: Fixed black nodes to display in dark gray (#1F2937) with black stroke instead of green, making them distinguishable from red nodes (#EF4444)
+  - **DAA Page Legend**: Added "Black Node (RBT)" entry for clarity
+  - **Fork() System Call Visualizer**: Completely rewrote parser to handle various C-like brace styles including:
+    - Braces on same line as if statement: `if (fork() == 0) {`
+    - Braces on next line
+    - Else blocks with various patterns: `} else {`, `else {`, `else`, inline `else statement;`
+    - Single-line if/else statements without braces
+  - **TypeScript Fixes**: Resolved all type errors in binomialHeap.ts, drawing.ts, and utils.ts
+  - **B-Tree & Binomial Heap**: Verified implementations are correct per standard algorithms (no changes needed)
+
 ## Project Architecture
 
 ### Technology Stack
@@ -70,7 +81,7 @@ No environment variables currently required. The project uses client-side only f
 
 ## Known Issues
 - 5 npm audit vulnerabilities (3 low, 2 moderate) - non-critical, scheduled for review
-- TypeScript build errors ignored in config (intentional for rapid development)
+- TypeScript build errors ignored in next.config (intentional for rapid development, but all current errors have been resolved)
 
 ## User Preferences
 - None specified yet

@@ -16,7 +16,7 @@ export const deepCloneNode = (node: Node | null, parent: Node | null = null): No
     }
     
     if(node.children) {
-        newNode.children = node.children.map(child => deepCloneNode(child, newNode));
+        newNode.children = node.children.map(child => deepCloneNode(child, newNode)).filter((child): child is Node => child !== null);
     }
 
 
