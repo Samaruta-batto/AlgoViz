@@ -1,3 +1,4 @@
+
 import { Node, HistoryStep } from '../types';
 import { addHistory, deepCloneNode } from './utils';
 
@@ -23,7 +24,7 @@ const findNodeWithKey = (node: Node | null, k: number): Node | null => {
 
 const splitChild = (x: Node, i: number, history: HistoryStep[], order: number) => {
     const y = x.children[i];
-    addHistory(history, deepCloneNode(x.getRoot()), `Node [${y.keys.join(',')}] is full. Splitting it.`, y.keys[0], undefined, x.keys[0]);
+    addHistory(history, deepCloneNode(x.getRoot()), `Node [${y.keys.join(',')}] is full. Splitting it.`, y.keys.length > 0 ? y.keys[0] : undefined, undefined, x.keys.length > 0 ? x.keys[0] : undefined);
     
     const z = new Node(0); // value is irrelevant
     z.isLeaf = y.isLeaf;
@@ -31,50 +32,56 @@ const splitChild = (x: Node, i: number, history: HistoryStep[], order: number) =
 
     const medianKey = y.keys[order - 1];
 
-    z.keys = y.keys.splice(order); // t to 2t-2 keys go to z
-    y.keys.splice(order-1); // median key is removed from y
+    // Keys from median onwards go to the new node 'z'
+    z.keys = y.keys.splice(order); 
+    // The median key itself is removed from y
+    y.keys.pop();
 
     if (!y.isLeaf) {
+        // Children from median's corresponding position onwards go to 'z'
         z.children = y.children.splice(order);
         z.children.forEach(c => { c.parent = z; });
     }
     
+    // Insert 'z' as a new child of 'x'
     x.children.splice(i + 1, 0, z);
+    // Insert the median key into 'x'
     x.keys.splice(i, 0, medianKey);
     
-    // Assign correct values to new nodes for highlighting
-    y.value = y.keys[0];
-    z.value = z.keys[0];
-    x.value = x.keys[0];
+    // Assign representative values for highlighting purposes.
+    y.value = y.keys.length > 0 ? y.keys[0] : -1;
+    z.value = z.keys.length > 0 ? z.keys[0] : -1;
+    x.value = x.keys.length > 0 ? x.keys[0] : -1;
 
 
-    addHistory(history, deepCloneNode(x.getRoot()), `Split complete. Median key ${medianKey} promoted to parent [${x.keys.join(',')}].`, medianKey, undefined, x.keys[0]);
+    addHistory(history, deepCloneNode(x.getRoot()), `Split complete. Median key ${medianKey} promoted to parent [${x.keys.join(',')}].`, medianKey, undefined, x.keys.length > 0 ? x.keys[0] : undefined);
 };
 
 const insertNonFull = (x: Node, k: number, history: HistoryStep[], order: number) => {
-    addHistory(history, deepCloneNode(x.getRoot()), `At node [${x.keys.join(',')}]. Searching for insertion spot for key ${k}.`, x.keys[0], k);
+    addHistory(history, deepCloneNode(x.getRoot()), `At node [${x.keys.join(',')}]. Searching for insertion spot for key ${k}.`, x.keys.length > 0 ? x.keys[0] : undefined, k);
     let i = x.keys.length - 1;
 
     if (x.isLeaf) {
-        addHistory(history, deepCloneNode(x.getRoot()), `Node is a leaf. Inserting key ${k}.`, x.keys[0], k);
+        addHistory(history, deepCloneNode(x.getRoot()), `Node is a leaf. Inserting key ${k}.`, x.keys.length > 0 ? x.keys[0] : undefined, k);
         x.keys.push(0); // placeholder
         while (i >= 0 && k < x.keys[i]) {
             x.keys[i + 1] = x.keys[i];
             i--;
         }
         x.keys[i + 1] = k;
-        addHistory(history, deepCloneNode(x.getRoot()), `Key ${k} inserted. Leaf is now [${x.keys.join(',')}].`, x.keys[0], k);
+        x.value = x.keys[0]; // Update representative value
+        addHistory(history, deepCloneNode(x.getRoot()), `Key ${k} inserted. Leaf is now [${x.keys.join(',')}].`, x.keys.length > 0 ? x.keys[0] : undefined, k);
     } else {
         while (i >= 0 && k < x.keys[i]) {
             i--;
         }
         i++;
-        addHistory(history, deepCloneNode(x.getRoot()), `Key ${k} fits in child at index ${i}. Descending...`, x.keys[0], undefined, x.children[i].keys[0]);
+        addHistory(history, deepCloneNode(x.getRoot()), `Key ${k} fits in child at index ${i}. Descending...`, x.keys.length > 0 ? x.keys[0] : undefined, undefined, x.children[i].keys.length > 0 ? x.children[i].keys[0] : undefined);
         
         if (x.children[i].keys.length === 2 * order - 1) {
             splitChild(x, i, history, order);
             // After split, the median key moves to x.keys[i].
-            // We need to check if k is greater than this new median key.
+            // We need to check if k is greater than this new median key to decide which child to go into.
             if (k > x.keys[i]) {
                 i++; // The key k will go into the new sibling node z.
             }
@@ -98,12 +105,12 @@ export const insertBTree = (initialRoot: Node | null, k: number, order: number):
     
     if (findNodeWithKey(root, k)) {
         addHistory(history, root, `Key ${k} already exists. No changes made.`);
-        return history;
+        return [{ tree: root, message: `Key ${k} already exists in the tree.` }];
     }
 
     if (root.keys.length === 2 * order - 1) {
-        addHistory(history, root, `Root [${root.keys.join(',')}] is full. Splitting root before insertion.`, root.keys[0]);
-        const s = new Node(0);
+        addHistory(history, root, `Root [${root.keys.join(',')}] is full. Splitting root before insertion.`, root.keys.length > 0 ? root.keys[0] : undefined);
+        const s = new Node(0); // Dummy value
         s.isLeaf = false;
         s.children.push(root);
         root.parent = s;
@@ -292,7 +299,7 @@ export const deleteBTree = (initialRoot: Node | null, k: number, order: number):
     
     if (!findNodeWithKey(root, k)) {
         addHistory(history, root, `Key ${k} not found in the tree.`);
-        return history;
+         return [{ tree: root, message: `Key ${k} not found in the tree.` }];
     }
 
     deleteBTreeRecursive(root, k, history, order);
@@ -311,3 +318,5 @@ export const deleteBTree = (initialRoot: Node | null, k: number, order: number):
     addHistory(history, root, `B-Tree deletion of ${k} complete.`);
     return history;
 };
+
+    
