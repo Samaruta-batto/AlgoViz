@@ -71,16 +71,7 @@ const insertNonFull = (x: Node, k: number, history: HistoryStep[], order: number
         i++;
         
         let childToInsertIn = x.children[i];
-        if (!childToInsertIn) {
-            // This case can happen after a split if the index logic is off.
-            // Let's find the correct child again.
-            let newI = 0;
-            while(newI < x.keys.length && k > x.keys[newI]){
-                newI++;
-            }
-            childToInsertIn = x.children[newI];
-        }
-
+        
         addHistory(history, deepCloneNode(x.getRoot()), `Key ${k} fits in child [${childToInsertIn.keys.join(',')}]. Descending...`, x.keys.length > 0 ? x.keys[0] : undefined, undefined, childToInsertIn.keys.length > 0 ? childToInsertIn.keys[0] : undefined);
         
         if (childToInsertIn.keys.length === 2 * order - 1) {
@@ -132,7 +123,7 @@ export const insertBTree = (initialRoot: Node | null, k: number, order: number):
 const removeFromLeaf = (node: Node, keyIndex: number, history: HistoryStep[], order: number) => {
     const key = node.keys[keyIndex];
     node.keys.splice(keyIndex, 1);
-    addHistory(history, node.getRoot(), `Removed key ${key} from leaf node.`, node.keys[0] || node.parent?.keys[0]);
+    if(node.getRoot()) addHistory(history, node.getRoot(), `Removed key ${key} from leaf node.`, node.keys[0] || node.parent?.keys[0]);
 };
 
 const removeFromNonLeaf = (node: Node, keyIndex: number, history: HistoryStep[], order: number) => {
@@ -140,20 +131,20 @@ const removeFromNonLeaf = (node: Node, keyIndex: number, history: HistoryStep[],
     const predChild = node.children[keyIndex];
     const succChild = node.children[keyIndex + 1];
 
-    addHistory(history, node.getRoot(), `Removing ${key} from internal node.`, key, undefined, node.keys[0]);
+    if(node.getRoot()) addHistory(history, node.getRoot(), `Removing ${key} from internal node.`, key, undefined, node.keys[0]);
 
     if (predChild.keys.length >= order) {
         const predKey = getPred(node, keyIndex, history);
-        addHistory(history, node.getRoot(), `Predecessor child has enough keys. Replacing ${key} with predecessor ${predKey}.`, predKey, undefined, key);
+        if(node.getRoot()) addHistory(history, node.getRoot(), `Predecessor child has enough keys. Replacing ${key} with predecessor ${predKey}.`, predKey, undefined, key);
         node.keys[keyIndex] = predKey;
         deleteBTreeRecursive(predChild, predKey, history, order);
     } else if (succChild.keys.length >= order) {
         const succKey = getSucc(node, keyIndex, history);
-        addHistory(history, node.getRoot(), `Successor child has enough keys. Replacing ${key} with successor ${succKey}.`, succKey, undefined, key);
+        if(node.getRoot()) addHistory(history, node.getRoot(), `Successor child has enough keys. Replacing ${key} with successor ${succKey}.`, succKey, undefined, key);
         node.keys[keyIndex] = succKey;
         deleteBTreeRecursive(succChild, succKey, history, order);
     } else {
-        addHistory(history, node.getRoot(), `Both children have minimum keys. Merging them.`, predChild.keys[0], undefined, succChild.keys[0]);
+        if(node.getRoot()) addHistory(history, node.getRoot(), `Both children have minimum keys. Merging them.`, predChild.keys[0], undefined, succChild.keys[0]);
         merge(node, keyIndex, history, order);
         deleteBTreeRecursive(predChild, key, history, order);
     }
@@ -192,7 +183,7 @@ const merge = (node: Node, keyIndex: number, history: HistoryStep[], order: numb
 
     node.keys.splice(keyIndex, 1);
     node.children.splice(keyIndex + 1, 1);
-    addHistory(history, node.getRoot(), `Merged nodes around key ${node.keys[keyIndex]}.`, child.keys[0]);
+    if(node.getRoot()) addHistory(history, node.getRoot(), `Merged nodes around key ${node.keys[keyIndex]}.`, child.keys[0]);
 };
 
 const borrowFromPrev = (node: Node, keyIndex: number, history: HistoryStep[], order: number) => {
@@ -210,7 +201,7 @@ const borrowFromPrev = (node: Node, keyIndex: number, history: HistoryStep[], or
     if (!sibling.isLeaf) {
         sibling.children.pop();
     }
-     addHistory(history, node.getRoot(), `Borrowed from previous sibling.`, child.keys[0]);
+     if(node.getRoot()) addHistory(history, node.getRoot(), `Borrowed from previous sibling.`, child.keys[0]);
 };
 
 const borrowFromNext = (node: Node, keyIndex: number, history: HistoryStep[], order: number) => {
@@ -228,7 +219,7 @@ const borrowFromNext = (node: Node, keyIndex: number, history: HistoryStep[], or
     if (!sibling.isLeaf) {
         sibling.children.shift();
     }
-    addHistory(history, node.getRoot(), `Borrowed from next sibling.`, child.keys[0]);
+    if(node.getRoot()) addHistory(history, node.getRoot(), `Borrowed from next sibling.`, child.keys[0]);
 };
 
 
@@ -248,7 +239,7 @@ const fill = (node: Node, keyIndex: number, history: HistoryStep[], order: numbe
 
 
 const deleteBTreeRecursive = (node: Node, k: number, history: HistoryStep[], order: number): void => {
-    addHistory(history, node.getRoot(), `Searching for key ${k} in node [${node.keys.join(',')}]`, node.keys[0], k);
+    if(node.getRoot()) addHistory(history, node.getRoot(), `Searching for key ${k} in node [${node.keys.join(',')}]`, node.keys[0], k);
 
     let keyIndex = node.keys.findIndex(key => key === k);
     
@@ -260,7 +251,7 @@ const deleteBTreeRecursive = (node: Node, k: number, history: HistoryStep[], ord
         }
     } else { // Key is not in this node
         if (node.isLeaf) {
-            addHistory(history, node.getRoot(), `Key ${k} not found in the tree.`);
+            if(node.getRoot()) addHistory(history, node.getRoot(), `Key ${k} not found in the tree.`);
             return;
         }
 
@@ -268,12 +259,11 @@ const deleteBTreeRecursive = (node: Node, k: number, history: HistoryStep[], ord
         while (i < node.keys.length && k > node.keys[i]) {
             i++;
         }
-
-        const isLastChild = (i === node.children.length);
+        
         const child = node.children[i];
 
         if (child.keys.length < order) {
-             addHistory(history, node.getRoot(), `Child [${child.keys.join(',')}] has too few keys. Filling it.`, child.keys[0]);
+             if(node.getRoot()) addHistory(history, node.getRoot(), `Child [${child.keys.join(',')}] has too few keys. Filling it.`, child.keys[0]);
             fill(node, i, history, order);
         }
         

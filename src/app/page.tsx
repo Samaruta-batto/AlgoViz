@@ -89,7 +89,7 @@ const TreeVisualizer = () => {
         animationIntervalRef.current = setInterval(() => {
             stepForward();
         }, 800);
-    }, [isAnimating, currentStepIndex, history.length, cleanupAnimation, stepForward, history.length]);
+    }, [isAnimating, currentStepIndex, history.length, cleanupAnimation, stepForward]);
     
     useEffect(() => {
         if(isAnimating && currentStepIndex === history.length - 1) {
@@ -287,9 +287,9 @@ const TreeVisualizer = () => {
 
                     <div className="lg:col-span-2 space-y-6">
                          <Alert className="border-accent bg-accent/10 dark:bg-accent/20">
-                            <BotMessageSquare className="h-4 w-4 text-accent dark:text-accent" />
-                            <AlertTitle className="text-accent-foreground dark:text-gray-200">Status</AlertTitle>
-                            <AlertDescription className="text-accent-foreground/80 dark:text-gray-300">
+                            <BotMessageSquare className="h-4 w-4 text-accent dark:text-sky-300" />
+                            <AlertTitle className="text-accent-foreground dark:text-sky-200">Status</AlertTitle>
+                            <AlertDescription className="text-accent-foreground/80 dark:text-sky-300/80">
                                 {currentStep?.message || "Select a tree type and perform an operation."}
                             </AlertDescription>
                         </Alert>
@@ -299,6 +299,7 @@ const TreeVisualizer = () => {
                                     <canvas
                                         ref={canvasRef}
                                         width={CANVAS_WIDTH}
+                                        height={300}
                                         className="transition-all duration-500"
                                         style={{ display: 'block', margin: '0 auto', minWidth: '100%' }}
                                     >
