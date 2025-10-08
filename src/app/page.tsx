@@ -57,7 +57,7 @@ const LandingPage = () => {
                <ul className="list-disc list-inside text-muted-foreground space-y-1">
                 <li>CPU Scheduling Algorithms</li>
                 <li>Page Replacement Algorithms</li>
-                <li>(Coming Soon!)</li>
+                <li>Process Management (fork())</li>
               </ul>
             </CardContent>
             <div className="p-6 pt-0">
