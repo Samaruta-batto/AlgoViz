@@ -69,7 +69,7 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
     const calculateDepth = (node: Node | null, depth: number) => {
         if (!node) return;
         maxDepth = Math.max(maxDepth, depth);
-        if (treeType === 'BTree') {
+        if (treeType === 'BTree' && node.children) {
             node.children.forEach(child => calculateDepth(child, depth + 1));
         } else {
             calculateDepth(node.left, depth + 1);
@@ -88,21 +88,23 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
     let minX = Infinity;
     let maxX = -Infinity;
 
-    const findBounds = (node: Node) => {
+    const findBoundsAndShift = (node: Node | null, shiftX: number) => {
+        if (!node) return;
+        node.x += shiftX;
+
         if (treeType === 'BTree') {
-            const nodeStartX = node.x - node.width / 2;
-            const nodeEndX = node.x + node.width / 2;
-            minX = Math.min(minX, nodeStartX);
-            maxX = Math.max(maxX, nodeEndX);
-            node.children.forEach(findBounds);
+             const nodeStartX = node.x - node.width / 2;
+             const nodeEndX = node.x + node.width / 2;
+             minX = Math.min(minX, nodeStartX);
+             maxX = Math.max(maxX, nodeEndX);
+             if(node.children) node.children.forEach(c => findBoundsAndShift(c, shiftX));
         } else {
             minX = Math.min(minX, node.x - NODE_RADIUS);
             maxX = Math.max(maxX, node.x + NODE_RADIUS);
-            if(node.left) findBounds(node.left);
-            if(node.right) findBounds(node.right);
+            findBoundsAndShift(node.left, shiftX);
+            findBoundsAndShift(node.right, shiftX);
         }
     };
-    
 
     // 1. Recalculate layout
     if (treeType === 'BTree') {
@@ -111,11 +113,34 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
     } else {
         layoutBinaryTree(root, CANVAS_WIDTH / 2, NODE_RADIUS, CANVAS_WIDTH / 4, 0);
     }
+    
+    // Find bounds to calculate required width
+    minX = Infinity;
+    maxX = -Infinity;
+    const initialFindBounds = (node: Node) => {
+        if (treeType === 'BTree') {
+            const nodeStartX = node.x - node.width / 2;
+            const nodeEndX = node.x + node.width / 2;
+            minX = Math.min(minX, nodeStartX);
+            maxX = Math.max(maxX, nodeEndX);
+            if(node.children) node.children.forEach(initialFindBounds);
+        } else {
+            minX = Math.min(minX, node.x - NODE_RADIUS);
+            maxX = Math.max(maxX, node.x + NODE_RADIUS);
+            if(node.left) initialFindBounds(node.left);
+            if(node.right) initialFindBounds(node.right);
+        }
+    };
+    initialFindBounds(root);
 
-    findBounds(root);
+    const requiredWidth = maxX - minX + (NODE_RADIUS * 2);
+    ctx.canvas.width = Math.max(CANVAS_WIDTH, requiredWidth);
 
-    const requiredWidth = Math.max(CANVAS_WIDTH, maxX - minX + (NODE_RADIUS * 2));
-    ctx.canvas.width = requiredWidth;
+    // Shift entire tree if minX is negative
+    const shiftX = ctx.canvas.width / 2 - (minX + (maxX-minX)/2);
+    minX = Infinity;
+    maxX = -Infinity;
+    findBoundsAndShift(root, shiftX);
 
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
@@ -124,12 +149,13 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
     const drawRecursive = (node: Node) => {
         if (treeType === 'BTree') {
             // Draw connections first
-            if (!node.isLeaf) {
+            if (!node.isLeaf && node.children) {
                 node.children.forEach((child, index) => {
                     ctx.beginPath();
                     const parentKeyWidth = node.keys.length * B_TREE_KEY_WIDTH;
                     const parentStartX = node.x - parentKeyWidth / 2;
-                    const lineStartX = parentStartX + index * (B_TREE_KEY_WIDTH);
+                    // The line should emerge from *between* keys
+                    const lineStartX = parentStartX + index * B_TREE_KEY_WIDTH + (index > 0 ? (index) * 2 : 0) ;
                     
                     ctx.moveTo(lineStartX, node.y + B_TREE_NODE_HEIGHT / 2);
                     ctx.lineTo(child.x, child.y - B_TREE_NODE_HEIGHT / 2);
@@ -141,7 +167,7 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
             // Then draw nodes
             drawBTreeNode(ctx, node, step);
             // Then recurse
-            if (!node.isLeaf) {
+            if (!node.isLeaf && node.children) {
                 node.children.forEach(drawRecursive);
             }
         } else {
@@ -157,7 +183,7 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
                 }
             });
              // Then draw nodes
-            drawBinaryNode(ctx, node, step);
+            drawBinaryNode(ctx, node);
             // Then recurse
             if (node.left) drawRecursive(node.left);
             if (node.right) drawRecursive(node.right);
@@ -170,19 +196,18 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
 
 const drawBTreeNode = (ctx: CanvasRenderingContext2D, node: Node, step: HistoryStep | null) => {
     const keyCount = node.keys.length;
-    const boxWidth = keyCount * B_TREE_KEY_WIDTH;
+    if (keyCount === 0) return; // Don't draw empty nodes
+
+    const boxWidth = keyCount * B_TREE_KEY_WIDTH + (keyCount -1) * 2;
     const startX = node.x - boxWidth / 2;
-    
-    const isPrimaryHighlight = step?.highlightNodeValue === node.value || (node.keys.includes(step?.highlightNodeValue ?? -1) && node.children.length > 0);
-    const isSecondaryHighlight = step?.secondaryHighlightNodeValue === node.value || (node.keys.includes(step?.secondaryHighlightNodeValue ?? -1) && node.children.length > 0);
     
     let fillColor = '#10B981'; // Default green
     let strokeColor = '#047857';
 
-    if(isPrimaryHighlight) {
-        fillColor = '#F59E0B'; // Yellow
+    if(node.highlighted) {
+        fillColor = '#FBBF24'; // Yellow
         strokeColor = '#D97706';
-    } else if(isSecondaryHighlight) {
+    } else if(node.secondaryHighlighted) {
         fillColor = '#38BDF8'; // Sky blue
         strokeColor = '#0284C7';
     }
@@ -199,11 +224,11 @@ const drawBTreeNode = (ctx: CanvasRenderingContext2D, node: Node, step: HistoryS
     
     // Draw keys and internal dividers
     node.keys.forEach((key, index) => {
-        const keyStartX = startX + index * B_TREE_KEY_WIDTH;
+        const keyStartX = startX + index * (B_TREE_KEY_WIDTH + 2);
         
         // Highlight specific key
         if(step?.highlightKey === key) {
-            ctx.fillStyle = 'rgba(251, 146, 60, 0.5)'; // Orange highlight
+            ctx.fillStyle = 'rgba(251, 146, 60, 0.7)'; // Orange highlight
             ctx.fillRect(keyStartX, node.y - B_TREE_NODE_HEIGHT / 2, B_TREE_KEY_WIDTH, B_TREE_NODE_HEIGHT);
         }
 
@@ -226,18 +251,15 @@ const drawBTreeNode = (ctx: CanvasRenderingContext2D, node: Node, step: HistoryS
     });
 }
 
-const drawBinaryNode = (ctx: CanvasRenderingContext2D, node: Node, step: HistoryStep | null) => {
-    const isPrimaryHighlight = node.value === step?.highlightNodeValue;
-    const isSecondaryHighlight = node.value === step?.secondaryHighlightNodeValue;
-
+const drawBinaryNode = (ctx: CanvasRenderingContext2D, node: Node) => {
     let fillColor = node.color === 'red' ? '#EF4444' : '#10B981';
     let strokeColor = node.color === 'red' ? '#B91C1C' : '#047857';
 
-    if (isPrimaryHighlight) {
-        fillColor = '#F59E0B';
+    if (node.highlighted) {
+        fillColor = '#FBBF24'; // Yellow
         strokeColor = '#D97706';
-    } else if (isSecondaryHighlight) {
-        fillColor = '#38BDF8';
+    } else if (node.secondaryHighlighted) {
+        fillColor = '#38BDF8'; // Sky blue
         strokeColor = '#0284C7';
     }
     
@@ -257,5 +279,3 @@ const drawBinaryNode = (ctx: CanvasRenderingContext2D, node: Node, step: History
     ctx.textBaseline = 'middle';
     ctx.fillText(node.value.toString(), node.x, node.y);
 };
-
-    

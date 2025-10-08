@@ -7,6 +7,7 @@ export class Node {
     parent: Node | null;
     color: 'red' | 'black';
     highlighted: boolean;
+    secondaryHighlighted: boolean; // For highlighting a second node
     x: number;
     y: number;
 
@@ -24,6 +25,7 @@ export class Node {
         this.parent = parent;
         this.color = color;
         this.highlighted = false;
+        this.secondaryHighlighted = false;
         this.x = x;
         this.y = y;
 
@@ -31,6 +33,14 @@ export class Node {
         this.modifier = 0;
         this.width = 0;
         this.isLeaf = true;
+    }
+
+    getRoot(): Node {
+        let current: Node = this;
+        while(current.parent) {
+            current = current.parent;
+        }
+        return current;
     }
 }
 

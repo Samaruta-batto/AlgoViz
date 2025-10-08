@@ -11,9 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type { Node, HistoryStep } from '@/lib/types';
-import { insertBST, deleteBST } from '@/lib/algorithms'; // Assuming BST delete is added
-import { insertRBTree, deleteRBTree } from '@/lib/algorithms';
-import { insertBTree, deleteBTree } from '@/lib/algorithms';
+import { insertBST, deleteBST, insertRBTree, deleteRBTree, insertBTree, deleteBTree } from '@/lib/algorithms';
 import { drawTree, CANVAS_WIDTH } from '@/lib/drawing';
 
 
@@ -136,7 +134,7 @@ const TreeVisualizer = () => {
                     break;
             }
 
-            if (newHistory.length > 0) {
+            if (newHistory.length > 1) { // Check for more than initial state
                 setHistory(newHistory);
                 setCurrentStepIndex(0);
                 toast({
@@ -147,7 +145,7 @@ const TreeVisualizer = () => {
                  toast({
                     variant: "destructive",
                     title: "Operation Failed",
-                    description: `${operationName} of ${value} resulted in no state changes. The value may not exist for deletion.`,
+                    description: newHistory[0]?.message || `Value ${value} may already exist for insertion or not exist for deletion.`,
                 });
             }
         } catch (e: any) {
@@ -174,12 +172,20 @@ const TreeVisualizer = () => {
         if (isNaN(newOrder) || newOrder < 2) {
             newOrder = 2;
         }
+        if (newOrder > 5) {
+             toast({
+                variant: "destructive",
+                title: `B-Tree Order Too Large`,
+                description: `Max order is 5 for performance reasons.`
+            });
+            newOrder = 5;
+        }
         setBTreeOrder(newOrder);
         setHistory([]);
         setCurrentStepIndex(-1);
         toast({
             title: `B-Tree Order Updated`,
-            description: `Order set to T=${newOrder}. Min Keys: ${newOrder - 1}, Max Keys: ${2 * newOrder - 1}. Tree has been reset.`
+            description: `Order set to T=${newOrder}. Tree has been reset.`
         });
     };
     
@@ -218,6 +224,7 @@ const TreeVisualizer = () => {
                                         value={bTreeOrder}
                                         onChange={handleOrderChange}
                                         min="2"
+                                        max="5"
                                         className="w-full"
                                     />
                                     <p className="text-xs text-muted-foreground">
@@ -269,10 +276,10 @@ const TreeVisualizer = () => {
                     </Card>
 
                     <div className="lg:col-span-2 space-y-6">
-                        <Alert className="border-accent bg-accent/10 dark:bg-accent/20">
-                            <BotMessageSquare className="h-4 w-4 text-accent-foreground dark:text-slate-200" />
-                            <AlertTitle className="text-accent-foreground dark:text-slate-200">Status</AlertTitle>
-                            <AlertDescription className="text-accent-foreground/80 dark:text-slate-300">
+                         <Alert className="border-accent bg-accent/10 dark:bg-accent/20">
+                            <BotMessageSquare className="h-4 w-4 text-accent-foreground dark:text-accent-foreground" />
+                            <AlertTitle className="text-accent-foreground dark:text-accent-foreground">Status</AlertTitle>
+                            <AlertDescription className="text-accent-foreground/80 dark:text-accent-foreground/90">
                                 {currentStep?.message || "Select a tree type and perform an operation."}
                             </AlertDescription>
                         </Alert>
@@ -297,11 +304,11 @@ const TreeVisualizer = () => {
                             <CardContent className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground items-center">
                                 <div className="flex items-center gap-2">
                                     <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-yellow-600"></div>
-                                    <span>Current Node</span>
+                                    <span>Current/Target Node</span>
                                 </div>
                                  <div className="flex items-center gap-2">
                                     <div className="w-4 h-4 rounded-full bg-sky-400 border-2 border-sky-600"></div>
-                                    <span>Secondary Node</span>
+                                    <span>Helper/Secondary Node</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-red-700"></div>
@@ -309,7 +316,7 @@ const TreeVisualizer = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-emerald-700"></div>
-                                    <span>Black Node / BST Node</span>
+                                    <span>Black Node / BST / B-Tree Node</span>
                                 </div>
                             </CardContent>
                         </Card>
@@ -321,5 +328,3 @@ const TreeVisualizer = () => {
 };
 
 export default TreeVisualizer;
-
-    
