@@ -20,6 +20,8 @@ export const deepCloneNode = (node: Node | null, parent: Node | null = null): No
         newNode.right = deepCloneNode(node.right, newNode);
     }
     
+    // Ensure children array is always initialized before use
+    newNode.children = [];
     if (node.children) {
         newNode.children = node.children.map(child => deepCloneNode(child, newNode)).filter((child): child is Node => child !== null);
     }
