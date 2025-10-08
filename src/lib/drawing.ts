@@ -1,6 +1,6 @@
 import { Node, HistoryStep } from './types';
 
-export const CANVAS_WIDTH = 800;
+export const CANVAS_WIDTH = 1200;
 const NODE_RADIUS = 20;
 const LEVEL_HEIGHT = 90;
 const B_TREE_NODE_HEIGHT = 40;
@@ -78,17 +78,47 @@ export const drawTree = (ctx: CanvasRenderingContext2D, step: HistoryStep | null
     };
     calculateDepth(root, 1);
     ctx.canvas.height = Math.max(300, (maxDepth + 1) * LEVEL_HEIGHT);
-    ctx.clearRect(0, 0, CANVAS_WIDTH, ctx.canvas.height);
+    
 
-    if (!root) return;
+    if (!root) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        return;
+    }
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+
+    const findBounds = (node: Node) => {
+        if (treeType === 'BTree') {
+            const nodeStartX = node.x - node.width / 2;
+            const nodeEndX = node.x + node.width / 2;
+            minX = Math.min(minX, nodeStartX);
+            maxX = Math.max(maxX, nodeEndX);
+            node.children.forEach(findBounds);
+        } else {
+            minX = Math.min(minX, node.x - NODE_RADIUS);
+            maxX = Math.max(maxX, node.x + NODE_RADIUS);
+            if(node.left) findBounds(node.left);
+            if(node.right) findBounds(node.right);
+        }
+    };
+    
 
     // 1. Recalculate layout
     if (treeType === 'BTree') {
         layoutBTree(root, 0, order);
-        positionBTree(root, 0);
+        positionBTree(root, NODE_RADIUS); // Add padding
     } else {
         layoutBinaryTree(root, CANVAS_WIDTH / 2, NODE_RADIUS, CANVAS_WIDTH / 4, 0);
     }
+
+    findBounds(root);
+
+    const requiredWidth = Math.max(CANVAS_WIDTH, maxX - minX + (NODE_RADIUS * 2));
+    ctx.canvas.width = requiredWidth;
+
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
 
     // 2. Recursive draw
     const drawRecursive = (node: Node) => {
@@ -227,3 +257,5 @@ const drawBinaryNode = (ctx: CanvasRenderingContext2D, node: Node, step: History
     ctx.textBaseline = 'middle';
     ctx.fillText(node.value.toString(), node.x, node.y);
 };
+
+    

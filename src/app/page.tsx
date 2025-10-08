@@ -269,10 +269,10 @@ const TreeVisualizer = () => {
                     </Card>
 
                     <div className="lg:col-span-2 space-y-6">
-                        <Alert className="border-accent bg-accent/10">
-                            <BotMessageSquare className="h-4 w-4 text-accent-foreground" />
-                            <AlertTitle className="text-accent-foreground">Status</AlertTitle>
-                            <AlertDescription className="text-accent-foreground/80">
+                        <Alert className="border-accent bg-accent/10 dark:bg-accent/20">
+                            <BotMessageSquare className="h-4 w-4 text-accent-foreground dark:text-slate-200" />
+                            <AlertTitle className="text-accent-foreground dark:text-slate-200">Status</AlertTitle>
+                            <AlertDescription className="text-accent-foreground/80 dark:text-slate-300">
                                 {currentStep?.message || "Select a tree type and perform an operation."}
                             </AlertDescription>
                         </Alert>
@@ -283,7 +283,7 @@ const TreeVisualizer = () => {
                                         ref={canvasRef}
                                         width={CANVAS_WIDTH}
                                         className="transition-all duration-500"
-                                        style={{ display: 'block', margin: '0 auto', maxWidth: '100%' }}
+                                        style={{ display: 'block', margin: '0 auto', minWidth: '100%' }}
                                     >
                                         Your browser does not support the HTML canvas tag.
                                     </canvas>
@@ -321,3 +321,5 @@ const TreeVisualizer = () => {
 };
 
 export default TreeVisualizer;
+
+    
